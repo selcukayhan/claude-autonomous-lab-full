@@ -1,0 +1,9 @@
+
+# Runs & temp
+runs/
+.env
+node_modules/
+dist/
+.build/
+.cache/
+.DS_Store

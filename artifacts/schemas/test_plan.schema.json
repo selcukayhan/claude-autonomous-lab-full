@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "required": [
+    "budget_minutes",
+    "selected_tests",
+    "rationale"
+  ],
+  "properties": {
+    "budget_minutes": {
+      "type": "integer"
+    },
+    "selected_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rationale": {
+      "type": "string"
+    }
+  }
+}

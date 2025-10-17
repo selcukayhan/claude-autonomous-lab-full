@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "required": [
+    "agents",
+    "flows",
+    "last_summary"
+  ],
+  "properties": {
+    "agents": {
+      "type": "object"
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "last_summary": {
+      "type": "string"
+    }
+  }
+}

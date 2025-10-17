@@ -1,0 +1,14 @@
+{
+  "agents": {
+    "security": {
+      "enabled": false
+    },
+    "release": {
+      "enabled": false
+    }
+  },
+  "defaults": {
+    "verbosity": "low",
+    "fail_if_disabled_gate": false
+  }
+}

@@ -1,0 +1,169 @@
+version: 2
+settings:
+  allow_retries: 1
+  default_verbosity: low
+  optional_agents:
+    security: true
+    release: true
+
+artifacts:
+  spec: artifacts/spec.json
+  ux_research: artifacts/ux_research.json
+  ux_design: artifacts/ux_design.json
+  system_design: contracts/system_design.yaml
+  interfaces: contracts/interfaces.yaml
+  team_plan: artifacts/team_plan.json
+  plan: artifacts/plan.json
+  change_set: artifacts/change_set.json
+  test_plan: artifacts/test_plan.json
+  security_summary: artifacts/security_summary.json
+  release: artifacts/release.json
+  framework_map: runs/framework_map.json
+  learned_patterns: runs/learned_patterns.json
+  benefit_report: runs/benefit_report.json
+
+context_policy:
+  tiers:
+    - tier0: always
+    - tier1: phase_inputs
+    - tier2: retrieve(top_k=8)
+    - tier3: history(limit=5)
+
+states:
+  - name: bootstrap
+    agent: bootstrap
+    reads: []
+    writes: [framework_map]
+    validate:
+      - schema: artifacts/schemas/framework_map.schema.json
+    next: requirements
+
+  - name: requirements
+    agent: requirements
+    reads: []
+    writes: [spec]
+    validate:
+      - schema: artifacts/schemas/spec.schema.json
+    next: ux_research
+
+  - name: ux_research
+    agent: uiux-researcher
+    reads: [spec]
+    writes: [ux_research]
+    validate:
+      - schema: artifacts/schemas/ux_research.schema.json
+    next: architecture
+
+  - name: architecture
+    agent: architecture
+    reads: [spec, ux_research]
+    writes: [system_design, interfaces, team_plan]
+    validate:
+      - file: contracts/system_design.yaml
+      - file: contracts/interfaces.yaml
+      - schema: artifacts/schemas/team_plan.schema.json
+    next: ux_design
+
+  - name: ux_design
+    agent: uiux-designer
+    reads: [spec, ux_research, interfaces]
+    writes: [ux_design]
+    validate:
+      - schema: artifacts/schemas/ux_design.schema.json
+    next: council_review
+
+  - name: council_review
+    mode: parallel
+    participants:
+      - agent: coding-fe
+        reads: [spec, ux_design, interfaces, system_design]
+        writes: []
+        output_contract: review_note
+      - agent: coding-be
+        reads: [spec, system_design, interfaces]
+        writes: []
+        output_contract: review_note
+      - agent: coding-devops
+        reads: [team_plan, interfaces, system_design]
+        writes: []
+        output_contract: review_note
+      - agent: uiux-designer
+        reads: [ux_design, interfaces]
+        writes: []
+        output_contract: review_note
+    reconcile:
+      agent: architecture
+      rule: one_pass_fix_then_lock
+    next: planning
+
+  - name: planning
+    agent: planning
+    reads: [spec, interfaces, team_plan, ux_design]
+    writes: [plan]
+    validate:
+      - schema: artifacts/schemas/plan.schema.json
+    next: coding
+
+  - name: coding
+    mode: parallel
+    participants:
+      - agent: coding-fe
+        reads: [plan, interfaces, ux_design]
+        writes: [change_set]
+      - agent: coding-be
+        reads: [plan, interfaces]
+        writes: [change_set]
+      - agent: coding-devops
+        reads: [plan, interfaces, team_plan]
+        writes: [change_set]
+    merge_rule: union_change_sets
+    next: test
+
+  - name: test
+    agent: test
+    reads: [plan, change_set]
+    writes: [test_plan]
+    validate:
+      - schema: artifacts/schemas/test_plan.schema.json
+    gates:
+      - kind: coverage_delta
+        min: 0.0
+      - kind: critical_tests_pass
+    next: security
+
+  - name: security
+    optional: true
+    agent: security
+    reads: []
+    writes: [security_summary]
+    next: release
+
+  - name: release
+    optional: true
+    agent: release
+    reads: [spec, plan, test_plan, security_summary]
+    writes: [release]
+    next: docs
+
+  - name: docs
+    agent: docs
+    reads: [spec, system_design, interfaces, plan, release]
+    writes: []
+    next: experiment_phase
+
+  - name: experiment_phase
+    agent: experiment
+    reads: [framework_map, learned_patterns]
+    writes: []
+    next: learning_phase
+
+  - name: learning_phase
+    agent: context-manager
+    reads: [framework_map]
+    writes: [learned_patterns, benefit_report]
+    validate:
+      - schema: artifacts/schemas/learned_patterns.schema.json
+      - schema: artifacts/schemas/benefit_report.schema.json
+    next: done
+
+done: true

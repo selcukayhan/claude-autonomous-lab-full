@@ -1,0 +1,95 @@
+{
+  "type": "object",
+  "required": [
+    "personas",
+    "jobs_to_be_done",
+    "user_journeys",
+    "key_findings",
+    "constraints"
+  ],
+  "properties": {
+    "personas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "role",
+          "goals",
+          "pain_points"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pain_points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "accessibility_needs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "jobs_to_be_done": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "user_journeys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "steps"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "happy_path_metrics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "key_findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

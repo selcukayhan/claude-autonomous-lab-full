@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "required": [
+    "base_ref",
+    "compare_ref",
+    "files"
+  ],
+  "properties": {
+    "base_ref": {
+      "type": "string"
+    },
+    "compare_ref": {
+      "type": "string"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

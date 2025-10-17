@@ -1,0 +1,42 @@
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Autonomous Lab — Sample</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial; margin: 2rem; }
+      .card { max-width: 560px; padding: 1rem; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+      input { width: 120px; padding: .5rem; margin-right: .5rem; }
+      button { padding: .6rem 1rem; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+      #out { margin-top: 1rem; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Autonomous Lab — Sample Calculator</h1>
+    <div class="card">
+      <input id="a" type="number" placeholder="a"/>
+      <input id="b" type="number" placeholder="b"/>
+      <button onclick="calc('+')">+</button>
+      <button onclick="calc('-')">-</button>
+      <button onclick="calc('*')">*</button>
+      <button onclick="calc('/')">/</button>
+      <div id="out"></div>
+    </div>
+    <script>
+      function calc(op) {
+        const a = parseFloat(document.getElementById('a').value||'0');
+        const b = parseFloat(document.getElementById('b').value||'0');
+        let r = 0;
+        switch(op){
+          case '+': r=a+b; break;
+          case '-': r=a-b; break;
+          case '*': r=a*b; break;
+          case '/': r=b===0? '∞' : a/b; break;
+        }
+        document.getElementById('out').innerText = 'Result: ' + r;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "type": "object",
+  "required": [
+    "information_architecture",
+    "wireframes",
+    "component_specs",
+    "design_tokens",
+    "accessibility_criteria"
+  ],
+  "properties": {
+    "information_architecture": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "wireframes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "screen",
+          "description",
+          "elements"
+        ],
+        "properties": {
+          "screen": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "component_specs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "props",
+          "states",
+          "events"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "props": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "design_tokens": {
+      "type": "object"
+    },
+    "accessibility_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

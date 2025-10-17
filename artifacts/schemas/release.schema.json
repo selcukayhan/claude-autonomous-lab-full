@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "required": [
+    "version",
+    "release_type",
+    "changelog_entry",
+    "release_notes",
+    "packages",
+    "tag",
+    "checks"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "release_type": {
+      "enum": [
+        "major",
+        "minor",
+        "patch"
+      ]
+    },
+    "changelog_entry": {
+      "type": "string"
+    },
+    "release_notes": {
+      "type": "string"
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "tag": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

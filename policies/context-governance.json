@@ -1,0 +1,6 @@
+{
+  "context_budget_tokens": 4000,
+  "top_k": 8,
+  "salience_threshold": 0.5,
+  "allow_auto_promotion": false
+}

@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "required": [
+    "runs",
+    "avg_tokens",
+    "success_rate",
+    "patterns_added"
+  ],
+  "properties": {
+    "runs": {
+      "type": "integer"
+    },
+    "avg_tokens": {
+      "type": "number"
+    },
+    "success_rate": {
+      "type": "number"
+    },
+    "patterns_added": {
+      "type": "integer"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

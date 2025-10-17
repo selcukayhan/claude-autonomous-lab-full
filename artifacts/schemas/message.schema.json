@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "required": [
+    "message_type",
+    "from",
+    "to",
+    "topic",
+    "payload"
+  ],
+  "properties": {
+    "message_type": {
+      "enum": [
+        "proposal",
+        "feedback",
+        "approval",
+        "question",
+        "status"
+      ]
+    },
+    "from": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    },
+    "topic": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "verbosity": {
+      "enum": [
+        "low",
+        "audit",
+        "debug"
+      ]
+    }
+  }
+}

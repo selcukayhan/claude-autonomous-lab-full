@@ -1,0 +1,16 @@
+
+name: Validate
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Basic validation
+        run: |
+          test -d artifacts && test -d agents && echo "OK"
+      - name: Echo summary
+        run: echo "CI pipeline complete for $GITHUB_SHA"
