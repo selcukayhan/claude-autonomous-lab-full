@@ -1,0 +1,22 @@
+{
+  "feature_id": "000-template",
+  "plan_ref": "specs/000-template/plan.md",
+  "spec_ref": "specs/000-template/spec.md",
+  "version": "0.1.0",
+  "status": "draft",
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "Replace with executable task",
+      "owner": "coding-be",
+      "status": "pending",
+      "spec_criterion_refs": ["AC1"],
+      "depends_on": [],
+      "estimated_hours": 1.0,
+      "definition_of_done": [
+        "Replace with concrete, verifiable DoD bullet"
+      ],
+      "scope_paths": ["src/backend/**"]
+    }
+  ]
+}

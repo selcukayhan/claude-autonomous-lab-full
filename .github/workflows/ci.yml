@@ -1,16 +1,48 @@
-
 name: Validate
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
+
 jobs:
-  check:
+  spec-driven-validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Basic validation
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli@5
+
+      - name: Required files
         run: |
-          test -d artifacts && test -d agents && echo "OK"
-      - name: Echo summary
-        run: echo "CI pipeline complete for $GITHUB_SHA"
+          set -e
+          test -f constitution.md
+          test -d agents
+          test -d artifacts/schemas
+          test -d flows
+          test -d policies
+          test -d specs
+
+      - name: Validate root schemas parse
+        run: |
+          set -e
+          for f in artifacts/schemas/*.json; do
+            jq empty "$f" || { echo "Invalid JSON: $f"; exit 1; }
+          done
+
+      - name: Run spec-driven validator
+        run: bash runner/validate.sh
+
+      - name: Block PRs with pending HITL
+        run: |
+          set -e
+          if ls specs/*/staging/hitl/*.json 2>/dev/null; then
+            echo "::error::Pending HITL requests must be resolved before merge."
+            exit 1
+          fi
+
+      - name: Summary
+        run: echo "Spec-driven validation complete for $GITHUB_SHA"

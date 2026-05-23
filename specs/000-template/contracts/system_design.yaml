@@ -1,0 +1,26 @@
+# Copy of /contracts/system_design.yaml — fill in for this feature.
+version: "0.1.0"
+feature_id: 000-template
+spec_ref: specs/000-template/spec.md
+
+context:
+  problem_summary: ""
+  primary_actors: []
+  scope: included
+
+architecture_style: ""
+
+components: []
+data_stores: []
+data_flow: []
+
+cross_cutting:
+  observability: ""
+  security_model: ""
+  failure_modes: []
+
+decisions: []
+
+links:
+  spec: specs/000-template/spec.md
+  interfaces: specs/000-template/contracts/interfaces.yaml

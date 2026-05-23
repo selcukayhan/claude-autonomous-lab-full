@@ -1,9 +1,15 @@
 ---
 name: security
-description: Run policy checks (optional) and summarize results.
-inputs: repo, policies/quality-gates.json, policies/security-policy.json
-outputs: artifacts/security_summary.json
+description: Run policy/vuln checks on the change_sets for a feature (optional).
+inputs: specs/<feature_id>/evidence/change_sets/*.json, policies/quality-gates.json
+outputs: specs/<feature_id>/evidence/security_summary.json
 tools: ['Read', 'Write']
 verbosity: low
 ---
-If disabled via config, output a skipped summary; else summarize issues based on policies.
+# Role
+If disabled in `policies/agents.config.json#agents.security.enabled`, emit a
+skipped summary and return. Otherwise:
+- Scan dependencies for HIGH-severity vulnerabilities.
+- Verify license allowlist compliance.
+- Block pre_merge_review when a HIGH vuln exists unless
+  `specs/<feature_id>/evidence/waivers.json` contains a matching, human-recorded waiver.

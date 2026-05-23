@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Constitution",
+  "description": "Machine-readable mirror of constitution.md. Used by the policy agent and runner to enforce immutable principles.",
+  "type": "object",
+  "required": [
+    "version",
+    "last_amended",
+    "principles",
+    "hitl_stops",
+    "ownership"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "SemVer. Bump major for breaking principle changes."
+    },
+    "last_amended": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO date of last amendment."
+    },
+    "principles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "rule"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^P[0-9]+$" },
+          "title": { "type": "string" },
+          "rule": { "type": "string" },
+          "binding": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "hitl_stops": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "trigger", "approver"],
+        "properties": {
+          "id": { "type": "string" },
+          "trigger": { "type": "string" },
+          "approver": { "type": "string", "enum": ["human", "policy_agent"] },
+          "blocks_until_approved": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "description": "Map of agent role -> allowed path globs."
+    },
+    "amendment_procedure_ref": {
+      "type": "string",
+      "description": "Path to the spec describing the amendment procedure (typically constitution.md#X)."
+    }
+  }
+}

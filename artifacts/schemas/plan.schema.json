@@ -1,11 +1,57 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan",
+  "description": "Machine-readable mirror of specs/<feature_id>/plan.md. Decomposes the locked spec into a strategy that downstream tasks.json will expand into executable units.",
   "type": "object",
   "required": [
+    "feature_id",
+    "spec_ref",
+    "version",
+    "status",
+    "approach",
+    "milestones",
     "work_items"
   ],
   "properties": {
+    "feature_id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9-]+$"
+    },
+    "spec_ref": {
+      "type": "string",
+      "description": "Relative path to the locked spec.md (e.g., specs/001-foo/spec.md)."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "in_review", "locked", "amended", "superseded"]
+    },
+    "approach": {
+      "type": "string",
+      "description": "High-level technical strategy. Why this design over alternatives."
+    },
+    "milestones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "exit_criteria"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^M[0-9]+$" },
+          "title": { "type": "string" },
+          "exit_criteria": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
     "work_items": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
@@ -14,34 +60,58 @@
           "definition_of_done",
           "estimated_hours",
           "depends_on",
-          "owner"
+          "owner",
+          "spec_criterion_refs"
         ],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
+          "id": { "type": "string", "pattern": "^WI[0-9]+$" },
+          "title": { "type": "string" },
+          "milestone_ref": { "type": "string", "pattern": "^M[0-9]+$" },
+          "spec_criterion_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^AC[0-9]+$" }
           },
           "definition_of_done": {
             "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "minItems": 1,
+            "items": { "type": "string" }
           },
-          "estimated_hours": {
-            "type": "number"
-          },
+          "estimated_hours": { "type": "number", "minimum": 0.25 },
           "depends_on": {
             "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "items": { "type": "string" }
           },
           "owner": {
-            "type": "string"
+            "type": "string",
+            "enum": ["coding-fe", "coding-be", "coding-devops", "test", "docs", "security"]
+          },
+          "scope_paths": {
+            "type": "array",
+            "items": { "type": "string" }
           }
         }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "mitigation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^R[0-9]+$" },
+          "description": { "type": "string" },
+          "mitigation": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "med", "high"] }
+        }
+      }
+    },
+    "lock_record": {
+      "type": "object",
+      "properties": {
+        "approver": { "type": "string" },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "approval_notes": { "type": "string" }
       }
     }
   }

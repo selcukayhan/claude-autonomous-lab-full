@@ -1,0 +1,14 @@
+# Copy of /contracts/interfaces.yaml — fill in for this feature.
+version: "0.1.0"
+feature_id: 000-template
+spec_ref: specs/000-template/spec.md
+
+http: []
+events: []
+modules: []
+shapes: []
+
+links:
+  spec: specs/000-template/spec.md
+  system_design: specs/000-template/contracts/system_design.yaml
+  openapi_ref: ""

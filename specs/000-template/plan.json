@@ -1,0 +1,28 @@
+{
+  "feature_id": "000-template",
+  "spec_ref": "specs/000-template/spec.md",
+  "version": "0.1.0",
+  "status": "draft",
+  "approach": "Replace with high-level strategy.",
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Replace with milestone title",
+      "exit_criteria": ["Replace with observable exit signal"]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "WI1",
+      "title": "Replace with work item title",
+      "milestone_ref": "M1",
+      "spec_criterion_refs": ["AC1"],
+      "definition_of_done": ["Replace with DoD bullet"],
+      "estimated_hours": 2,
+      "depends_on": [],
+      "owner": "coding-be",
+      "scope_paths": []
+    }
+  ],
+  "risks": []
+}

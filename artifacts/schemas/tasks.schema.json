@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tasks",
+  "description": "Executable task list derived from a locked plan. Each task is independently trackable and carries traceability back to spec criteria.",
+  "type": "object",
+  "required": [
+    "feature_id",
+    "plan_ref",
+    "spec_ref",
+    "version",
+    "status",
+    "tasks"
+  ],
+  "properties": {
+    "feature_id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9-]+$",
+      "description": "Matches the specs/<feature_id>/ directory name."
+    },
+    "plan_ref": {
+      "type": "string",
+      "description": "Relative path to the locked plan.md (e.g., specs/001-foo/plan.md)."
+    },
+    "spec_ref": {
+      "type": "string",
+      "description": "Relative path to the locked spec.md."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "frozen", "completed"],
+      "description": "draft = being decomposed; active = implementing; frozen = no more tasks added; completed = all tasks done."
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "owner",
+          "status",
+          "spec_criterion_refs",
+          "definition_of_done"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^T[0-9]{3}$",
+            "description": "Stable task ID, e.g., T001."
+          },
+          "title": { "type": "string" },
+          "owner": {
+            "type": "string",
+            "enum": ["coding-fe", "coding-be", "coding-devops", "test", "docs", "security"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "blocked", "completed", "cancelled"]
+          },
+          "spec_criterion_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "IDs of acceptance criteria from spec.md (e.g., AC1, AC2)."
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^T[0-9]{3}$" }
+          },
+          "estimated_hours": { "type": "number", "minimum": 0.25, "maximum": 4.0 },
+          "definition_of_done": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "scope_paths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Glob patterns the owner is allowed to modify for this task."
+          },
+          "completion_evidence": {
+            "type": "object",
+            "properties": {
+              "change_set_ref": { "type": "string" },
+              "test_refs": { "type": "array", "items": { "type": "string" } },
+              "notes": { "type": "string" }
+            }
+          },
+          "blocked_reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}
