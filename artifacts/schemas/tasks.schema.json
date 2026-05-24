@@ -91,7 +91,16 @@
               "notes": { "type": "string" }
             }
           },
-          "blocked_reason": { "type": "string" }
+          "blocked_reason": { "type": "string" },
+          "trello_card_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Set by runner/trello-sync.sh after the card is created. tasks.json remains canonical; this is a back-reference."
+          },
+          "trello_card_id": {
+            "type": "string",
+            "description": "Trello card ID; used by the sync script for idempotent updates."
+          }
         }
       }
     }

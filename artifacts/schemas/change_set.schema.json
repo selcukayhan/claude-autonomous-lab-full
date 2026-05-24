@@ -74,6 +74,19 @@
           "note": { "type": "string" }
         }
       }
+    },
+    "telemetry": {
+      "type": "object",
+      "description": "Per-task execution telemetry. Subagent writes the fields it knows (agent_id, model, started_at, finished_at). Orchestrator merges in duration_ms + total_tokens + tool_uses after the Agent return. All fields optional so legacy change_sets keep validating.",
+      "properties": {
+        "agent_id": { "type": "string", "description": "Subagent type, e.g. coding-fe." },
+        "model": { "type": "string", "description": "Model that executed the subagent, e.g. claude-opus-4-7." },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "duration_ms": { "type": "integer", "minimum": 0, "description": "Wall-clock duration from Agent return usage block." },
+        "total_tokens": { "type": "integer", "minimum": 0, "description": "Total tokens (input + output + cache) from Agent return usage block." },
+        "tool_uses": { "type": "integer", "minimum": 0, "description": "Tool-use count from Agent return usage block." }
+      }
     }
   }
 }

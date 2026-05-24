@@ -106,7 +106,8 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   done
 
   # -- staging/hitl/ must be empty for the feature to be considered passing --
-  if ls "$feature_dir"staging/hitl/*.json >/dev/null 2>&1; then
+  hitl_files=("$feature_dir"staging/hitl/*.json)
+  if [ ${#hitl_files[@]} -gt 0 ]; then
     echo "[Validate] $fid has pending HITL requests (not a failure, but commit may be blocked by runner)."
   fi
 done

@@ -9,6 +9,36 @@ constitution → spec (locked) → plan (locked) → tasks → coding → test �
 Every step is gated by either an automated validator or a Human-in-the-Loop
 (HITL) review. The orchestrator never lets an agent skip a gate.
 
+## Resuming work (read first if you're a fresh session)
+
+If you're a Claude session newly opened in this repo, orient by reading in this order:
+
+1. **This file** (`CLAUDE.md`) — conventions + ownership.
+2. **`constitution.md`** — immutable principles, HITL stops, ownership rules.
+3. **`runs/learned_patterns.json`** — cross-feature lessons learned in prior sessions.
+4. **`runs/benefit_report.json`** — current run-count and aggregate metrics.
+5. **`specs/`** — list directories to discover active features. For each `specs/<feature_id>/`:
+   - `state.json` — current lifecycle, phase, HITL state.
+   - `evidence/feature_summary.md` — the canonical "you are here" doc with all completed work, locked decisions, ready-now tasks, and cross-cutting context for agents.
+6. **`.claude/agents/<role>.md`** — your role's system prompt if you were spawned as a subagent.
+
+The **feature_summary.md** in each feature's `evidence/` directory is the most important per-feature read. The orchestrator maintains it as agents complete work; subagents must read it before starting any task so they understand what's been built and why.
+
+## Persistence layer (what survives session end)
+
+| Where | What | Updated by |
+|---|---|---|
+| `git` on `feat/*` branches | All artifacts + code | Runner auto-commits |
+| `constitution.md` | Principles | Constitution amendment HITL |
+| `specs/<id>/state.json#history` | Chronological phase log | Orchestrator at each transition |
+| `specs/<id>/evidence/feature_summary.md` | Detailed feature context for agents | Orchestrator after each phase / subagent return |
+| `specs/<id>/spec.md#Decisions` | Per-feature decisions with CQ traceability | Requirements agent on lock |
+| `specs/<id>/plan.md` ADRs + risks | Architectural decisions | Architecture + planning agents |
+| `runs/learned_patterns.json` | Cross-feature lessons (strings) | Context-manager + orchestrator |
+| `runs/benefit_report.json` | Aggregate metrics across runs | Context-manager |
+| `runs/telemetry.jsonl` | Per-task execution telemetry (agent, model, duration, tokens, tool_uses) | `runner/task-update.sh` (called by coding agents + orchestrator) |
+| Trello cards | Task status + DoD + AC refs (live) | `runner/task-update.sh` per-task; `runner/trello-sync.sh` for full re-syncs |
+
 ## Context tiers (assembled per phase)
 - **Tier0 (always):** `CLAUDE.md`, `constitution.md`, `policies/*`, the active agent manifest.
 - **Tier1:** the active phase's declared `reads:` from `flows/default.flow.yaml`.

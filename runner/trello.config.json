@@ -1,0 +1,40 @@
+{
+  "enabled": true,
+  "_comment": "Public Trello sync config. Secrets live in runner/trello.config.local.json (gitignored). Per-board IDs are written into each specs/<feature_id>/state.json#trello after first sync.",
+  "list_order": ["Pending", "In Progress", "Blocked", "Completed"],
+  "status_to_list": {
+    "pending": "Pending",
+    "in_progress": "In Progress",
+    "blocked": "Blocked",
+    "completed": "Completed",
+    "cancelled": "Completed"
+  },
+  "labels": {
+    "coding-fe":     "blue",
+    "coding-be":     "green",
+    "coding-devops": "purple",
+    "test":          "yellow",
+    "docs":          "sky",
+    "security":      "red"
+  },
+  "board_name_pattern": "{feature_id}",
+  "board_description_pattern": "Synced from specs/{feature_id}/tasks.json. tasks.json is the source of truth — moving cards here will be overwritten on next sync.",
+  "card_description_template": [
+    "**Status:** {status}",
+    "**Owner:** {owner}",
+    "**Spec ACs:** {spec_criterion_refs}",
+    "**Estimated:** {estimated_hours}h",
+    "**Depends on:** {depends_on}",
+    "",
+    "**Definition of Done:**",
+    "{definition_of_done}",
+    "",
+    "**Scope paths:**",
+    "{scope_paths}",
+    "",
+    "---",
+    "🔗 Source: `specs/{feature_id}/tasks.json#{id}`",
+    "🔒 Locked plan: `specs/{feature_id}/plan.md`",
+    "📜 Spec: `specs/{feature_id}/spec.md`"
+  ]
+}

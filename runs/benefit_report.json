@@ -1,0 +1,7 @@
+{
+  "runs": 1,
+  "avg_tokens": 0,
+  "success_rate": 1.0,
+  "patterns_added": 14,
+  "notes": "First spec-driven feature (001-pet-health-app) executed against the framework converted from agentic-SDLC to SDD in the same session. Both completed HITL gates (spec_lock_review, plan_lock_review) passed on first review. One subagent spawn (coding-fe / T001) completed successfully with no scope violations. 0 validator failures, 0 schema violations, 0 ownership rejections at the task-execution level. avg_tokens left at 0 pending instrumentation in a future runner enhancement."
+}

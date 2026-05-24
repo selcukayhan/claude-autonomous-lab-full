@@ -31,9 +31,14 @@ fswatch -or $WATCH_PATHS | while read changes; do
   echo "[Runner] Changes detected."
 
   # Check for pending HITL requests anywhere in specs/.
-  if [ "$BLOCK_ON_HITL" = "true" ] && ls specs/*/staging/hitl/*.json >/dev/null 2>&1; then
-    echo "[Runner] HITL pending — skipping commit. Resolve in specs/*/staging/hitl/ before continuing."
-    continue
+  if [ "$BLOCK_ON_HITL" = "true" ]; then
+    shopt -s nullglob
+    hitl_pending=(specs/*/staging/hitl/*.json)
+    shopt -u nullglob
+    if [ ${#hitl_pending[@]} -gt 0 ]; then
+      echo "[Runner] HITL pending (${hitl_pending[*]}) — skipping commit."
+      continue
+    fi
   fi
 
   bash runner/validate.sh || { echo "[Runner] Validation failed — not committing."; continue; }

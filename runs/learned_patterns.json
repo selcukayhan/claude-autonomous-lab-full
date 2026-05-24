@@ -1,0 +1,19 @@
+{
+  "updated_at": "2026-05-24T02:10:00Z",
+  "patterns": [
+    "Validator HITL glob bug: `ls path/*.json` with `shopt -s nullglob` makes the glob disappear, leaving `ls` with no args (which lists CWD and exits 0). Use a Bash array length check (`files=(path/*.json); [ ${#files[@]} -gt 0 ]`) instead.",
+    "Runner HITL race: HITL files created mid-fswatch-batch can slip into a commit because the runner's pre-validate HITL check ran before the file landed on disk. Re-check HITL just before `git add`, not only at loop top.",
+    "Bash 3.2 portability: macOS default `/bin/bash` is 3.2 — no associative arrays (`declare -A`). For maps inside framework scripts, store as JSON strings and use `jq` for lookups. Keeps scripts portable across user environments.",
+    "Subagent registry refresh: Claude Code only loads `.claude/agents/*.md` at session start. Newly added subagent files are not invokable by name mid-session. Workaround: use `subagent_type: general-purpose` with the role definition inlined in the prompt until the user restarts.",
+    "Trello API auth pairing: A Trello API key and token MUST come from the SAME Power-Up. A mismatched pair returns `invalid key` (HTTP 401) even though the key in isolation is valid. Diagnostic: call /members/me with key-only (no token) — if you get `invalid token` 400 instead of `invalid key` 401, the key is valid and the token is the mismatched part.",
+    "Trello workspace_id format: workspace_id is a 24-char hex Trello ID, not a friendly name. Fetch the right ID via GET /members/me/organizations.",
+    "Per-feature isolation: putting each feature under `specs/NNN-slug/` with its own state, contracts, plan, tasks, and evidence prevents cross-feature interference and makes each feature self-auditable. Worth the directory overhead.",
+    "Spec lifecycle gate: blocking `status: in_review` until `clarifying_questions[]` is empty prevents premature HITL requests. The requirements agent should resolve all CQs (with agent defaults + user input) before requesting spec_lock_review.",
+    "Ownership split rule: if a task's `scope_paths` span two role-owned path domains, split it into two tasks (one per owner) before requesting plan_lock_review. Example: a Sentry task that wires both CI (devops) and FE client code (frontend) becomes T034 (devops) + T035 (frontend).",
+    "Headless subagent limits for native mobile: Subagents in a sandbox have no Node/Xcode/Android Studio. For React Native scaffold tasks, hand-author the skeleton + document human-side `npm install` + platform init commands; treat 'cold-build succeeds' as a human-verified DoD bullet.",
+    "Secrets hygiene patterns: `.example` files in `runner/` are committed templates; real secrets must live in `*.local.json` (gitignored). Use a broad gitignore pattern like `runner/*.local.json` to catch all integration locals. If a real secret accidentally lands in `.example`, restore the template and rotate the credential.",
+    "Fallback subagent invocation: when a custom subagent isn't registered yet, spawn `general-purpose` and inline the `.claude/agents/<name>.md` content at the top of the prompt as `---ROLE: <name>---` block. Same observable behavior; remove fallback once `/restart` happens.",
+    "Trello card description as agent brief: cards' `desc` includes DoD, scope_paths, AC refs, depends_on, and a link back to `tasks.json#<id>`. This means the Trello board doubles as an agent task brief — humans and agents both can read context from cards.",
+    "Validator schema-coverage gap: `tasks.schema.json` doesn't validate task `scope_paths` against `policies/agents.config.json#ownership[owner]`. Consider adding a runtime check in `runner/validate.sh` to catch ownership violations before they reach a coding agent."
+  ]
+}
