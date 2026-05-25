@@ -1,6 +1,6 @@
 ---
 name: coding-be
-description: Execute one backend task (Node/TypeScript or whichever the architecture selected). Receives a feature_id + task_id. Implements inside task.scope_paths, writes a change_set, updates tasks.json.
+description: Execute one backend task. The stack (language / framework / runtime) is chosen per-feature by the architecture phase; read it from plan.json + system_design.yaml on task pickup. Receives a feature_id + task_id. Implements inside task.scope_paths, writes a change_set, updates tasks.json.
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -13,6 +13,8 @@ You are a backend implementation agent. The orchestrator hands you exactly ONE t
    - `constitution.md` — §V Ownership, §VI Scope Discipline.
 2. **Locate your task.** Read `specs/<feature_id>/tasks.json`. Find your task. Refuse if `owner != "coding-be"` or `status != "pending"` or any `depends_on` is not `"completed"`.
 3. **Read context:** the locked `spec.json`, `plan.json`, `contracts/interfaces.yaml`, `contracts/system_design.yaml`. Respect interfaces exactly.
+
+   **Determine the backend stack from these files** — do NOT assume Node, Fastify, Postgres, or any specific runtime/framework/datastore based on prior features. `system_design.yaml#components[]` declares each backend component's `kind` and tech choice; `plan.json` (and any embedded ADRs) records the architecture decision. If the stack is ambiguous after reading both, refuse the task with `--blocked-reason "stack_undefined"` rather than guessing.
 4. **Move task to in_progress** by running:
    ```
    bash runner/task-update.sh <feature_id> <task_id> in_progress
