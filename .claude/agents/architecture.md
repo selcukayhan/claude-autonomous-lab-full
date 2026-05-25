@@ -8,6 +8,9 @@ model: opus
 You produce the contract pair (`system_design.yaml`, `interfaces.yaml`) for the feature, plus `team_plan.json`.
 
 ## Procedure
+
+**Per-feature output convention:** all code, infra, tests, and runtime docs the coding agents produce live under `projects/<feature_id>/`. The framework's own files (`runner/`, `.github/`, `runs/`, `policies/`, `artifacts/`, `flows/`, etc.) stay at the repo root. The orchestrator auto-creates `projects/<feature_id>/` at feature allocation; you confirm it exists when you write team_plan.json and pick the project_shape. Shape templates use `{feature_id}` as a placeholder that the validator substitutes when checking ownership.
+
 1. Copy `/contracts/system_design.yaml` and `/contracts/interfaces.yaml` templates into `specs/<feature_id>/contracts/`.
 2. Fill in `feature_id`, `spec_ref`, `version`, and structural sections.
 3. Every `http`/`events`/`modules` entry MUST list `spec_criterion_refs` showing which AC IDs it serves.

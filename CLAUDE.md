@@ -85,6 +85,11 @@ Ownership is resolved per-feature, not globally. Look it up in this order:
 
 Coding-role ownership (`coding-fe`, `coding-be`, `coding-devops`) is INTENTIONALLY absent from the global default — every feature must pick a `project_shape` or declare its own coding-role globs so work isn't silently routed to paths that don't exist on disk.
 
+## Per-feature output directory
+All code, infra, tests, and runtime docs produced by coding agents live under `projects/<feature_id>/`. Shape templates use `{feature_id}` as a placeholder; the validator substitutes it before glob matching. The framework's own files (`runner/`, `.github/`, `runs/`, `policies/`, `artifacts/`, `flows/`, `specs/`) stay at the repo root — those are master-branch territory.
+
+The orchestrator creates `projects/<feature_id>/` at feature allocation. The validator fails if a feature's `state.json#phase` is past `bootstrap` and `projects/<feature_id>/` doesn't exist, unless the feature opts out with `team_plan.json#legacy_layout = true` (only `001-pet-health-app` should — it pre-dates this convention).
+
 Cross-boundary edits require an explicit `team_plan.json` entry plus
 reconciliation by the `architecture` agent.
 

@@ -139,8 +139,12 @@ resolve_ownership() {
 }
 
 # Does path "$1" match any of the globs on stdin? Supports trailing `/**`
-# (recursive prefix) and exact literal match. Other shell-glob meta is treated
-# as literal — keep patterns simple in shape files.
+# (recursive prefix), single-segment `/*`, and exact literal match. Other
+# shell-glob meta is treated as literal — keep patterns simple in shape files.
+#
+# Globs may use `{feature_id}` as a placeholder; caller is responsible for
+# substituting it before piping in (so the same matcher can resolve against
+# different features).
 path_in_globs() {
   local path="$1" glob
   while IFS= read -r glob; do
@@ -174,6 +178,22 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   fid=$(basename "$feature_dir")
   [ "$fid" = "000-template" ] && continue
   echo "[Validate] Feature: $fid"
+
+  # Project-dir existence check. Features created under the new convention
+  # output code to projects/<fid>/. Skip when the feature's team_plan opts
+  # out via "legacy_layout": true (preserves feat/001-pet-health-app).
+  tp="$feature_dir/team_plan.json"
+  legacy=false
+  if [ -f "$tp" ] && [ "$(jq -r '.legacy_layout // false' "$tp")" = "true" ]; then
+    legacy=true
+  fi
+  if [ "$legacy" = "false" ] && [ -f "$feature_dir/state.json" ]; then
+    phase=$(jq -r '.phase // "bootstrap"' "$feature_dir/state.json")
+    if [ "$phase" != "bootstrap" ] && [ "$phase" != "constitution_check" ]; then
+      [ -d "projects/$fid" ] \
+        || fail "feature $fid is past bootstrap (phase=$phase) but projects/$fid/ does not exist. Either create it (mkdir -p projects/$fid) or set team_plan.json#legacy_layout = true to opt out."
+    fi
+  fi
 
   spec_json="$feature_dir/spec.json"
   plan_json="$feature_dir/plan.json"
@@ -268,10 +288,12 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
     # anywhere (legacy features authored before the project-shape system).
     globs=$(resolve_ownership "$fid" "$cs_owner")
     if [ -n "$globs" ]; then
+      # Substitute {feature_id} in each glob before matching.
+      globs_sub=$(printf '%s\n' "$globs" | sed "s|{feature_id}|$fid|g")
       while IFS= read -r fp; do
         [ -z "$fp" ] && continue
-        if ! printf '%s\n' "$globs" | path_in_globs "$fp"; then
-          fail "$cs file '$fp' is outside ownership[$cs_owner] for feature $fid (resolved globs: $(echo "$globs" | tr '\n' ' '))"
+        if ! printf '%s\n' "$globs_sub" | path_in_globs "$fp"; then
+          fail "$cs file '$fp' is outside ownership[$cs_owner] for feature $fid (resolved globs: $(echo "$globs_sub" | tr '\n' ' '))"
         fi
       done < <(jq -r '.files[].path' "$cs")
     else

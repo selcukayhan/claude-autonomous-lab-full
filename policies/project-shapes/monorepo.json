@@ -2,12 +2,12 @@
   "name": "monorepo",
   "description": "Multiple apps and/or services in one repo. Each app/service is independently scoped. coding-fe may be spawned once per FE app; coding-be once per BE service.",
   "ownership": {
-    "coding-fe":      ["apps/**", "packages/ui/**", "packages/web/**", "packages/mobile/**"],
-    "coding-be":      ["services/**", "packages/shared/**", "packages/core/**"],
-    "coding-devops":  ["runner/**", ".github/**", "docker/**", "infra/**", "turbo.json", "nx.json", "pnpm-workspace.yaml", "Cargo.toml"],
-    "test":           ["apps/**", "services/**", "tests/**", "specs/*/evidence/test_plan.json"],
-    "docs":           ["README.md", "docs/**", "apps/*/README.md", "services/*/README.md", "specs/*/spec.md", "specs/*/plan.md"],
-    "security":       ["specs/*/evidence/security_summary.json"]
+    "coding-fe":      ["projects/{feature_id}/apps/**", "projects/{feature_id}/packages/ui/**", "projects/{feature_id}/packages/web/**", "projects/{feature_id}/packages/mobile/**"],
+    "coding-be":      ["projects/{feature_id}/services/**", "projects/{feature_id}/packages/shared/**", "projects/{feature_id}/packages/core/**"],
+    "coding-devops":  ["projects/{feature_id}/docker/**", "projects/{feature_id}/infra/**", "projects/{feature_id}/turbo.json", "projects/{feature_id}/nx.json", "projects/{feature_id}/pnpm-workspace.yaml", "projects/{feature_id}/Cargo.toml"],
+    "test":           ["projects/{feature_id}/apps/**", "projects/{feature_id}/services/**", "projects/{feature_id}/tests/**", "specs/{feature_id}/evidence/test_plan.json"],
+    "docs":           ["projects/{feature_id}/README.md", "projects/{feature_id}/docs/**", "projects/{feature_id}/apps/*/README.md", "projects/{feature_id}/services/*/README.md", "specs/{feature_id}/spec.md", "specs/{feature_id}/plan.md"],
+    "security":       ["specs/{feature_id}/evidence/security_summary.json"]
   },
-  "notes": "When tasks target a specific app/service, the architecture agent should narrow ownership in the per-feature team_plan.json — e.g. `coding-be: [\"services/auth/**\"]` for a feature scoped to one service."
+  "notes": "When tasks target a specific app/service, the architecture agent should narrow ownership in the per-feature team_plan.json — e.g. `coding-be: [\"projects/{feature_id}/services/auth/**\"]` for a feature scoped to one service."
 }

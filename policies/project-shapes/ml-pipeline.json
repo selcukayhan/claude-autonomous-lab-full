@@ -2,11 +2,11 @@
   "name": "ml-pipeline",
   "description": "Data or ML project: notebooks, pipelines, models, datasets. Less code, more configuration and reproducibility.",
   "ownership": {
-    "coding-be":     ["pipelines/**", "src/**", "notebooks/**", "models/**", "dbt/**", "sql/**"],
-    "coding-devops": ["runner/**", ".github/**", "infra/**", "docker/**", "airflow/**", "prefect/**", "dagster/**", "Makefile"],
-    "test":          ["tests/**", "src/**", "data/test/**", "specs/*/evidence/test_plan.json"],
-    "docs":          ["README.md", "docs/**", "notebooks/README.md", "specs/*/spec.md", "specs/*/plan.md"],
-    "security":      ["specs/*/evidence/security_summary.json"]
+    "coding-be":     ["projects/{feature_id}/pipelines/**", "projects/{feature_id}/src/**", "projects/{feature_id}/notebooks/**", "projects/{feature_id}/models/**", "projects/{feature_id}/dbt/**", "projects/{feature_id}/sql/**"],
+    "coding-devops": ["projects/{feature_id}/infra/**", "projects/{feature_id}/docker/**", "projects/{feature_id}/airflow/**", "projects/{feature_id}/prefect/**", "projects/{feature_id}/dagster/**", "projects/{feature_id}/Makefile"],
+    "test":          ["projects/{feature_id}/tests/**", "projects/{feature_id}/src/**", "projects/{feature_id}/data/test/**", "specs/{feature_id}/evidence/test_plan.json"],
+    "docs":          ["projects/{feature_id}/README.md", "projects/{feature_id}/docs/**", "projects/{feature_id}/notebooks/README.md", "specs/{feature_id}/spec.md", "specs/{feature_id}/plan.md"],
+    "security":      ["specs/{feature_id}/evidence/security_summary.json"]
   },
   "notes": "coding-fe rarely used unless the feature includes a dashboard/UI. notebooks/ counts as code for ownership purposes. Datasets under data/ are typically gitignored except `data/test/` fixtures. If the feature ships a dashboard, switch to `web-fullstack` with custom ownership."
 }

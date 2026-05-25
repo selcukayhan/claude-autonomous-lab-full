@@ -182,10 +182,11 @@ claude-autonomous-lab/
 │   ├── trello.config.json            # public Trello config (board topology, labels)
 │   └── trello.config.local.json      # gitignored credentials
 │
-├── src/                              # Default source tree for web-fullstack-shaped features;
-│   ├── frontend/                     #   other project_shapes use different roots
-│   ├── backend/                      #   (cli → cmd/, library → lib/, monorepo → apps/+services/)
-│   └── shared/                       # See policies/project-shapes/
+├── projects/                         # Per-feature CODE OUTPUT (one subdir per feature_id)
+│   ├── 003-csv-tool/                 # e.g. cli-shaped feature → cmd/, internal/
+│   ├── 004-pricing-api/              # e.g. web-fullstack → src/frontend/, src/backend/
+│   └── ...                           # Created by orchestrator at feature allocation.
+│                                     # Shape templates use {feature_id} placeholder.
 │
 ├── runs/                             # Cross-feature persistence (committed)
 │   ├── framework_map.json            # bootstrap agent output
@@ -200,9 +201,9 @@ claude-autonomous-lab/
 
 ## Project shapes (build anything, not just web apps)
 
-The framework supports any kind of software, not just two-tier web/mobile apps. Each feature picks a **project shape** when the architecture phase writes `team_plan.json`:
+The framework supports any kind of software, not just two-tier web/mobile apps. Each feature picks a **project shape** when the architecture phase writes `team_plan.json`, and all its code lives under `projects/<feature_id>/`:
 
-| Shape | When to pick | Where code lives |
+| Shape | When to pick | Where code lives (under `projects/<feature_id>/`) |
 |---|---|---|
 | `web-fullstack` | Two-tier client/server (web, mobile, desktop) | `src/frontend/` + `src/backend/` |
 | `monorepo` | Multiple apps and/or services in one repo | `apps/*/` + `services/*/` |
@@ -210,7 +211,11 @@ The framework supports any kind of software, not just two-tier web/mobile apps. 
 | `library` | Publishable library / SDK | `src/`, `lib/`, `examples/` |
 | `ml-pipeline` | Data / ML project with notebooks + pipelines | `pipelines/`, `notebooks/`, `models/` |
 
-The architecture agent picks one and writes `team_plan.json#project_shape = "<name>"`. Per-feature `team_plan.json#ownership` further narrows the shape's globs (e.g. a monorepo feature scoped to `services/auth/**`).
+The architecture agent picks one and writes `team_plan.json#project_shape = "<name>"`. Per-feature `team_plan.json#ownership` further narrows the shape's globs (e.g. a monorepo feature scoped to `projects/{feature_id}/services/auth/**`).
+
+**Per-feature isolation.** Every new feature's code lives under `projects/<feature_id>/`, never at the repo root. Shape templates use `{feature_id}` as a placeholder that the validator substitutes when checking ownership. The framework's own files (`runner/`, `.github/`, `runs/`, `policies/`, `artifacts/`, `flows/`, `specs/`) stay at the repo root — those are master-branch territory, not feature work.
+
+**Legacy escape hatch.** Features that pre-date this convention (e.g. `001-pet-health-app`, whose code lives at `src/frontend/` and `src/backend/` directly) set `team_plan.json#legacy_layout = true` to opt out of the projects-dir requirement.
 
 **Resolution order** (used by `runner/validate.sh` when checking that change_sets stay in scope):
 

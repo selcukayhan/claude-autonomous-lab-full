@@ -2,12 +2,12 @@
   "name": "web-fullstack",
   "description": "Two-tier client/server app (web, mobile, desktop). FE talks to BE over HTTP/WS. Examples: React+Node, Vue+Django, RN+Fastify, Next.js+API, Swift+gRPC.",
   "ownership": {
-    "coding-fe":      ["src/frontend/**"],
-    "coding-be":      ["src/backend/**", "src/shared/**"],
-    "coding-devops":  ["runner/**", ".github/**", "docker/**", "infra/**"],
-    "test":           ["src/frontend/**", "src/backend/**", "tests/**", "specs/*/evidence/test_plan.json"],
-    "docs":           ["README.md", "docs/**", "specs/*/spec.md", "specs/*/plan.md"],
-    "security":       ["specs/*/evidence/security_summary.json"]
+    "coding-fe":      ["projects/{feature_id}/src/frontend/**"],
+    "coding-be":      ["projects/{feature_id}/src/backend/**", "projects/{feature_id}/src/shared/**"],
+    "coding-devops":  ["projects/{feature_id}/docker/**", "projects/{feature_id}/infra/**", "projects/{feature_id}/Dockerfile", "projects/{feature_id}/docker-compose.yml", "projects/{feature_id}/Makefile"],
+    "test":           ["projects/{feature_id}/src/**", "projects/{feature_id}/tests/**", "specs/{feature_id}/evidence/test_plan.json"],
+    "docs":           ["projects/{feature_id}/README.md", "projects/{feature_id}/docs/**", "specs/{feature_id}/spec.md", "specs/{feature_id}/plan.md"],
+    "security":       ["specs/{feature_id}/evidence/security_summary.json"]
   },
-  "notes": "Closest fit when the architecture phase picks any client-server stack. Use `monorepo` instead if the feature spans multiple apps or services."
+  "notes": "Closest fit when the architecture phase picks any client-server stack. Use `monorepo` instead if the feature spans multiple apps or services. Framework-wide infra (runner/, .github/workflows/, etc.) is master-branch work — not in any shape."
 }
