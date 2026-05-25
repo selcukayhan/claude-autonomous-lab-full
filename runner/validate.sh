@@ -180,11 +180,21 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   echo "[Validate] Feature: $fid"
 
   # Project-dir existence check. Features created under the new convention
-  # output code to projects/<fid>/. Skip when the feature's team_plan opts
-  # out via "legacy_layout": true (preserves feat/001-pet-health-app).
+  # output code to projects/<fid>/. A feature is treated as "legacy" (exempt
+  # from modern structural checks) when ANY of the following hold:
+  #   (a) team_plan.json is missing entirely — the feature either pre-dates
+  #       the architecture phase OR opted out via flow_deviation
+  #       (002-webpack-migration is the canonical example: skipped
+  #       architecture, never authored team_plan.json).
+  #   (b) team_plan.json exists with "legacy_layout": true — explicit
+  #       opt-out for features whose code pre-dates the projects/<fid>/
+  #       convention (001-pet-health-app is the canonical example).
+  # Both conditions skip the projects-dir AND the tech_brief checks below.
   tp="$feature_dir/team_plan.json"
   legacy=false
-  if [ -f "$tp" ] && [ "$(jq -r '.legacy_layout // false' "$tp")" = "true" ]; then
+  if [ ! -f "$tp" ]; then
+    legacy=true
+  elif [ "$(jq -r '.legacy_layout // false' "$tp")" = "true" ]; then
     legacy=true
   fi
   if [ "$legacy" = "false" ] && [ -f "$feature_dir/state.json" ]; then
@@ -265,23 +275,27 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
 
     # Tech-brief enforcement (only for coding-* roles — other roles like
     # `test`, `docs`, `security` don't go through the task-architect phase).
-    case "$cs_owner" in
-      coding-*)
-        brief="$feature_dir"evidence/tech_briefs/"$task_ref".md
-        if [ ! -f "$brief" ]; then
-          fail "$cs from $cs_owner has no tech_brief at $brief — task-architect phase was skipped for task $task_ref"
-        fi
-        if grep -qE '^##[[:space:]]+OPEN[[:space:]]+QUESTIONS' "$brief"; then
-          fail "$cs shipped against a tech_brief with unresolved OPEN QUESTIONS ($brief). Re-run task-architect for $task_ref before coding."
-        fi
-        # Brief must contain an Impact analysis section. This forces the
-        # task-architect to do (or at least explicitly skip + state) the
-        # white-box reconnaissance pass for every coding task.
-        if ! grep -qE '^##[[:space:]]+Impact analysis' "$brief"; then
-          fail "$brief is missing the '## Impact analysis (white-box)' section. task-architect must do source reconnaissance, not write briefs from contracts alone."
-        fi
-        ;;
-    esac
+    # Skipped for legacy features (see legacy resolution above) since their
+    # change_sets pre-date the task-architect phase.
+    if [ "$legacy" = "false" ]; then
+      case "$cs_owner" in
+        coding-*)
+          brief="$feature_dir"evidence/tech_briefs/"$task_ref".md
+          if [ ! -f "$brief" ]; then
+            fail "$cs from $cs_owner has no tech_brief at $brief — task-architect phase was skipped for task $task_ref"
+          fi
+          if grep -qE '^##[[:space:]]+OPEN[[:space:]]+QUESTIONS' "$brief"; then
+            fail "$cs shipped against a tech_brief with unresolved OPEN QUESTIONS ($brief). Re-run task-architect for $task_ref before coding."
+          fi
+          # Brief must contain an Impact analysis section. This forces the
+          # task-architect to do (or at least explicitly skip + state) the
+          # white-box reconnaissance pass for every coding task.
+          if ! grep -qE '^##[[:space:]]+Impact analysis' "$brief"; then
+            fail "$brief is missing the '## Impact analysis (white-box)' section. task-architect must do source reconnaissance, not write briefs from contracts alone."
+          fi
+          ;;
+      esac
+    fi
 
     # Cross-check every change_set file against the resolved ownership for the
     # change_set's owner role. Skip silently when no ownership is declared
