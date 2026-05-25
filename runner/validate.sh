@@ -31,6 +31,73 @@ fi
 
 fail() { echo "[Validate] FAIL: $*"; exit 1; }
 
+# -- Agent manifest invariants ------------------------------------------------
+# Static lint of .claude/agents/*.md frontmatter. Catches regressions like
+# "orchestrator silently lost its Agent tool" or "coding-fe loses Bash and
+# starts failing to call runner/task-update.sh". Cheap, runs every commit.
+echo "[Validate] Agent manifests"
+
+# Extract the comma-separated `tools:` value from an agent's frontmatter
+# (first --- block). Returns empty string if no tools line.
+agent_tools() {
+  awk 'BEGIN{c=0} /^---$/{c++; if(c==2) exit; next} c==1 && /^tools:/{
+    sub(/^tools:[[:space:]]*/,""); print; exit
+  }' "$1"
+}
+
+has_tool() {
+  echo ",$1," | grep -q ",[[:space:]]*$2[[:space:]]*,"
+}
+
+# All agents seen on disk.
+declare_count=0
+for f in .claude/agents/*.md; do
+  [ -f "$f" ] || continue
+  name=$(basename "$f" .md)
+  tools=$(agent_tools "$f")
+  # Normalize: surround with commas so has_tool can do safe substring match.
+  tools_n=",${tools// /},"
+  declare_count=$((declare_count + 1))
+
+  case "$name" in
+    orchestrator)
+      has_tool "$tools_n" "Agent" \
+        || fail "$f: orchestrator must declare 'Agent' in tools (regression: subagent spawning would silently fall back to impersonation)"
+      ;;
+    *)
+      if has_tool "$tools_n" "Agent"; then
+        fail "$f: only orchestrator may declare 'Agent' (prevents recursive subagent spawning)"
+      fi
+      ;;
+  esac
+
+  # Any agent whose body invokes a runner/*.sh helper must declare Bash.
+  if grep -qE '`?bash runner/[a-z_-]+\.sh' "$f"; then
+    has_tool "$tools_n" "Bash" \
+      || fail "$f: body invokes 'bash runner/...sh' but Bash is not in tools"
+  fi
+
+  # Every agent that has an entry in policies/agents.config.json#ownership
+  # should expose Read+Write+Edit since ownership implies write authority.
+  if [ -f policies/agents.config.json ] && \
+     jq -e --arg n "$name" '.ownership[$n]' policies/agents.config.json >/dev/null 2>&1; then
+    for required in Read Write Edit; do
+      has_tool "$tools_n" "$required" \
+        || fail "$f: $name owns paths in policies/agents.config.json but lacks '$required' in tools"
+    done
+  fi
+done
+
+[ "$declare_count" -gt 0 ] || fail ".claude/agents/ has no agent manifests"
+
+# Every role with declared ownership must have a manifest file on disk.
+if [ -f policies/agents.config.json ]; then
+  while IFS= read -r role; do
+    [ -f ".claude/agents/$role.md" ] \
+      || fail "policies/agents.config.json declares ownership for '$role' but .claude/agents/$role.md is missing"
+  done < <(jq -r '.ownership | keys[]' policies/agents.config.json)
+fi
+
 # Walk every feature directory under specs/ (excluding the template).
 shopt -s nullglob
 for feature_dir in specs/[0-9][0-9][0-9]-*/; do
