@@ -227,6 +227,32 @@ The architecture agent picks one and writes `team_plan.json#project_shape = "<na
 
 ---
 
+## Design pipeline (visual mockups → coding-fe)
+
+Most mobile features need a UI. The framework supports an AI-assisted design loop:
+
+```
+You prompt Stitch (stitch.withgoogle.com, free)
+  "Pet dashboard, mobile, weight chart + vacc list + sync indicator"
+       ↓
+Stitch generates mockups → export as PNG → drop in
+projects/<feature_id>/design/01-dashboard.png, 02-pet-detail.png, ...
+       ↓
+uiux-designer agent (Opus, vision) reads every PNG/JPG via Glob+Read
+  → extracts screens, components, design tokens, a11y cues
+  → writes specs/<feature_id>/ux_design.json with mockup_refs back to each file
+       ↓
+task-architect (Opus) writes tech_briefs referencing ux_design.json
+       ↓
+coding-fe (Sonnet) implements
+```
+
+**Tools that work today (image-vision pipeline):** Stitch (recommended), Uizard, Figma exports, hand sketches photographed, any PNG/JPG/WebP.
+
+**Why this and not Figma MCP:** Official Figma Dev Mode MCP isn't a documented shipping product as of May 2026. The image-vision pipeline works now with zero plumbing; a Figma MCP layer can be added later without changing the rest of the framework. Mockups stored per-feature under `projects/<feature_id>/design/`, so they version with the code they describe.
+
+---
+
 ## The spec → plan → tasks → code chain
 
 | Artifact         | Schema                               | Locked by              |

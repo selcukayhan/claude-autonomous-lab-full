@@ -90,6 +90,9 @@ All code, infra, tests, and runtime docs produced by coding agents live under `p
 
 The orchestrator creates `projects/<feature_id>/` at feature allocation. The validator fails if a feature's `state.json#phase` is past `bootstrap` and `projects/<feature_id>/` doesn't exist, unless the feature opts out with `team_plan.json#legacy_layout = true` (only `001-pet-health-app` should — it pre-dates this convention).
 
+## Design pipeline
+Mockup images for the feature live under `projects/<feature_id>/design/` (PNG/JPG/WebP). The user generates mockups in Stitch / Uizard / Figma and drops them there. The `uiux-designer` agent (Opus, vision) reads them via Glob+Read, extracts screens/components/tokens, and writes `specs/<feature_id>/ux_design.json` with `mockup_refs` pointing back at the originals. Coding agents read `ux_design.json` for normalized design info; they peek at the raw mockups only when the brief explicitly references a file or `ux_design.json` is ambiguous.
+
 Cross-boundary edits require an explicit `team_plan.json` entry plus
 reconciliation by the `architecture` agent.
 
