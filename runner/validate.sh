@@ -254,6 +254,12 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
         if grep -qE '^##[[:space:]]+OPEN[[:space:]]+QUESTIONS' "$brief"; then
           fail "$cs shipped against a tech_brief with unresolved OPEN QUESTIONS ($brief). Re-run task-architect for $task_ref before coding."
         fi
+        # Brief must contain an Impact analysis section. This forces the
+        # task-architect to do (or at least explicitly skip + state) the
+        # white-box reconnaissance pass for every coding task.
+        if ! grep -qE '^##[[:space:]]+Impact analysis' "$brief"; then
+          fail "$brief is missing the '## Impact analysis (white-box)' section. task-architect must do source reconnaissance, not write briefs from contracts alone."
+        fi
         ;;
     esac
 
