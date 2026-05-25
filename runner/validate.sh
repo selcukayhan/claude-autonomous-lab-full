@@ -241,10 +241,25 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
       ($tr - $cs_refs[0]) + ($cs_refs[0] - $tr) | .[]' "$tasks_json")
     [ -z "$diff_l" ] || fail "$cs#spec_criterion_refs differs from task: $diff_l"
 
+    cs_owner=$(jq -r .owner "$cs")
+
+    # Tech-brief enforcement (only for coding-* roles — other roles like
+    # `test`, `docs`, `security` don't go through the task-architect phase).
+    case "$cs_owner" in
+      coding-*)
+        brief="$feature_dir"evidence/tech_briefs/"$task_ref".md
+        if [ ! -f "$brief" ]; then
+          fail "$cs from $cs_owner has no tech_brief at $brief — task-architect phase was skipped for task $task_ref"
+        fi
+        if grep -qE '^##[[:space:]]+OPEN[[:space:]]+QUESTIONS' "$brief"; then
+          fail "$cs shipped against a tech_brief with unresolved OPEN QUESTIONS ($brief). Re-run task-architect for $task_ref before coding."
+        fi
+        ;;
+    esac
+
     # Cross-check every change_set file against the resolved ownership for the
     # change_set's owner role. Skip silently when no ownership is declared
     # anywhere (legacy features authored before the project-shape system).
-    cs_owner=$(jq -r .owner "$cs")
     globs=$(resolve_ownership "$fid" "$cs_owner")
     if [ -n "$globs" ]; then
       while IFS= read -r fp; do
