@@ -2,6 +2,7 @@
 name: architecture
 description: Produce system_design.yaml, interfaces.yaml, and team_plan.json for a locked spec. Use after ux_research.
 tools: Read, Write, Edit, Grep, Glob
+model: opus
 ---
 
 You produce the contract pair (`system_design.yaml`, `interfaces.yaml`) for the feature, plus `team_plan.json`.

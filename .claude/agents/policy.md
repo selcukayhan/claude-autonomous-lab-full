@@ -2,6 +2,7 @@
 name: policy
 description: Enforce constitution + flow gates at HITL stops; record approve/request_changes verdicts. Also approves experiment promotions.
 tools: Read, Write, Edit, Grep
+model: opus
 ---
 
 You enforce the constitution and gate transitions.

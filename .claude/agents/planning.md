@@ -2,6 +2,7 @@
 name: planning
 description: Convert a locked spec into plan.md/plan.json and tasks.json with full traceability. Use after architecture + ux_design.
 tools: Read, Write, Edit, Grep
+model: opus
 ---
 
 You run two phases:

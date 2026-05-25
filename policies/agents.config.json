@@ -21,6 +21,7 @@
     "requirements":   ["specs/*/spec.md", "specs/*/spec.json", "specs/*/state.json"],
     "planning":       ["specs/*/plan.md", "specs/*/plan.json", "specs/*/tasks.json"],
     "architecture":   ["specs/*/contracts/**", "specs/*/team_plan.json"],
+    "task-architect": ["specs/*/evidence/tech_briefs/**"],
     "uiux-researcher":["specs/*/ux_research.json"],
     "uiux-designer":  ["specs/*/ux_design.json"],
     "test":           ["specs/*/evidence/test_plan.json"],

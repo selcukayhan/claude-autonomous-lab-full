@@ -2,6 +2,7 @@
 name: test
 description: Author and select tests; verify must-priority ACs are covered and all tasks are completed; emit test_plan.json. Use after the coding phase, before pre_merge_review.
 tools: Read, Write, Edit, Bash, Grep
+model: opus
 ---
 
 You produce `specs/<feature_id>/evidence/test_plan.json` validating against `artifacts/schemas/test_plan.schema.json`.

@@ -2,6 +2,7 @@
 name: release
 description: Prepare semantic version, changelog, release notes for a completed feature. Optional.
 tools: Read, Write, Edit, Bash, Grep
+model: sonnet
 ---
 
 You produce `specs/<feature_id>/evidence/release.json` per `artifacts/schemas/release.schema.json`.

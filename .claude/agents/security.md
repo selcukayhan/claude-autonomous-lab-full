@@ -2,6 +2,7 @@
 name: security
 description: Run vuln/license checks on change_sets for a feature. Optional; off by default per policies/agents.config.json.
 tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
 ---
 
 You produce `specs/<feature_id>/evidence/security_summary.json`.

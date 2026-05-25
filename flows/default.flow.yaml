@@ -24,6 +24,7 @@ artifacts:
   plan_md:         "specs/{feature_id}/plan.md"
   plan:            "specs/{feature_id}/plan.json"
   tasks:           "specs/{feature_id}/tasks.json"
+  tech_brief:      "specs/{feature_id}/evidence/tech_briefs/{task_id}.md"
   change_set:      "specs/{feature_id}/evidence/change_sets/{task_id}.json"
   test_plan:       "specs/{feature_id}/evidence/test_plan.json"
   security_summary:"specs/{feature_id}/evidence/security_summary.json"
@@ -176,6 +177,17 @@ states:
       - rule: every tasks.tasks[*].spec_criterion_refs is_subset_of spec.acceptance_criteria[*].id
       - rule: every spec.acceptance_criteria[*].id is_covered_by tasks.tasks[*].spec_criterion_refs
     hitl: plan_lock_review
+    next: task_architecture
+
+  - name: task_architecture
+    agent: task-architect
+    requires:
+      - rule: plan.status == "locked"
+      - rule: tasks.status in ["active", "frozen"]
+    reads: [spec, plan, tasks, interfaces, system_design, team_plan, ux_design, learned_patterns]
+    writes: [tech_brief]
+    validate:
+      - rule: every tasks.tasks[?(@.owner =~ "coding-.*" && @.status == "pending")].id has_corresponding tech_brief
     next: coding
 
   - name: coding
@@ -185,15 +197,15 @@ states:
       - rule: tasks.status in ["active", "frozen"]
     participants:
       - agent: coding-fe
-        reads: [plan, tasks, interfaces, ux_design]
+        reads: [plan, tasks, tech_brief, interfaces, ux_design]
         writes: [change_set]
         task_filter: "owner == 'coding-fe' and status == 'pending'"
       - agent: coding-be
-        reads: [plan, tasks, interfaces]
+        reads: [plan, tasks, tech_brief, interfaces]
         writes: [change_set]
         task_filter: "owner == 'coding-be' and status == 'pending'"
       - agent: coding-devops
-        reads: [plan, tasks, interfaces, team_plan]
+        reads: [plan, tasks, tech_brief, interfaces, team_plan]
         writes: [change_set]
         task_filter: "owner == 'coding-devops' and status == 'pending'"
     per_task_validate:

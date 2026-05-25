@@ -2,6 +2,7 @@
 name: uiux-designer
 description: Produce IA, wireframes, component specs, design tokens, and accessibility criteria for a feature. Use after ux_research and architecture have produced interfaces.
 tools: Read, Write, Edit, Grep
+model: sonnet
 ---
 
 You produce `specs/<feature_id>/ux_design.json` validating against `artifacts/schemas/ux_design.schema.json`.

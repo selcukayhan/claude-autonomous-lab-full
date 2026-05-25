@@ -5,11 +5,11 @@ A **language-agnostic, Claude-native, spec-driven, multi-agent development frame
 Every feature starts as a spec, locks at human review, decomposes into a plan and executable tasks, fans out to **real parallel subagents** for coding, and only merges after a third human gate. The framework's own learning is captured in versioned artifacts so the next session resumes with full context.
 
 ```
-constitution → spec (locked) → plan (locked) → tasks → coding → test → release
-       │            │              │             │         │        │
-       │            └─ HITL ──────┘             └─── HITL ─────────┘
-       └─ amendment HITL                                 │
-                                                        on merge
+constitution → spec (locked) → plan (locked) → tasks → tech_briefs → coding → test → release
+       │            │              │             │           │           │        │
+       │            └─ HITL ──────┘             └── Opus ───┘└─ Sonnet ─┘└─ HITL ┘
+       └─ amendment HITL                                                     │
+                                                                          on merge
 ```
 
 ---
@@ -102,10 +102,22 @@ Tasks with no overlapping `scope_paths` and satisfied `depends_on` can run in pa
 ### Subagent registry caveat
 Claude Code only loads `.claude/agents/*.md` **at session start**. New agent files require a session restart to be invokable by name. Workaround: spawn `general-purpose` with the role definition inlined in the prompt — same observable behavior.
 
-### The 17 roles
-`orchestrator` · `requirements` · `uiux-researcher` · `architecture` · `uiux-designer` · `planning` · `coding-fe` · `coding-be` · `coding-devops` · `test` · `policy` · `security` · `release` · `docs` · `context-manager` · `bootstrap` · `experiment`
+### The 18 roles
+`orchestrator` · `requirements` · `uiux-researcher` · `architecture` · `uiux-designer` · `planning` · **`task-architect`** · `coding-fe` · `coding-be` · `coding-devops` · `test` · `policy` · `security` · `release` · `docs` · `context-manager` · `bootstrap` · `experiment`
 
-Original docs at `agents/<name>.md`; runnable subagents at `.claude/agents/<name>.md`. Coding/architecture/planning use Opus; docs/bootstrap/context-manager use Haiku (cost-tiered).
+Runnable subagents at `.claude/agents/<name>.md`.
+
+### Model tiers (cost-engineered)
+
+Every agent declares its model in frontmatter. The tier is chosen by **how much reasoning vs execution** the role does:
+
+| Tier | Agents | Why |
+|---|---|---|
+| **Opus** | `orchestrator`, `requirements`, `architecture`, `planning`, `task-architect`, `policy`, `test` | Deep reasoning + design decisions. Wrong choices cascade. |
+| **Sonnet** | `coding-fe`, `coding-be`, `coding-devops`, `uiux-researcher`, `uiux-designer`, `security`, `release`, `experiment` | Execution against a pre-decided plan. Fast, capable, ~5× cheaper per token than Opus. |
+| **Haiku** | `bootstrap`, `context-manager`, `docs` | Mechanical aggregation. Cheapest, fastest. |
+
+The big lever is that **coding runs on Sonnet** because the `task-architect` agent (Opus, new) emits a per-task tech brief between `plan_lock_review` and `coding`. Coders implement the brief; they don't re-derive design. See `.claude/agents/task-architect.md` for the brief structure. Rough math on a 35-task feature: Opus tokens drop ~70%, Sonnet adds back at ~1/5 the per-token price → net ~40–55% cheaper.
 
 ---
 

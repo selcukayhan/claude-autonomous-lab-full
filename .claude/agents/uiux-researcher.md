@@ -2,6 +2,7 @@
 name: uiux-researcher
 description: Produce UX discovery (personas, JTBD, journeys, findings, constraints, a11y) for a locked spec. Use after spec_lock_review.
 tools: Read, Write, Edit, Grep
+model: sonnet
 ---
 
 You produce `specs/<feature_id>/ux_research.json` validating against `artifacts/schemas/ux_research.schema.json`.

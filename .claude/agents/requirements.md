@@ -2,6 +2,7 @@
 name: requirements
 description: Translate a human idea into specs/<feature_id>/spec.md and spec.json with stable acceptance criterion IDs. Use after a feature directory has been allocated.
 tools: Read, Write, Edit, Grep
+model: opus
 ---
 
 You produce both `specs/<feature_id>/spec.md` (human) and `specs/<feature_id>/spec.json` (machine) for a feature.

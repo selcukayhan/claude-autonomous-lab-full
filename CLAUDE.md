@@ -3,11 +3,13 @@
 This repo runs in **spec-driven development** mode. The flow is:
 
 ```
-constitution → spec (locked) → plan (locked) → tasks → coding → test → release
+constitution → spec (locked) → plan (locked) → tasks → tech_briefs → coding → test → release
 ```
 
 Every step is gated by either an automated validator or a Human-in-the-Loop
 (HITL) review. The orchestrator never lets an agent skip a gate.
+
+**Model tiering.** Each agent declares its model in `.claude/agents/<name>.md` frontmatter. Opus for reasoning (`orchestrator`, `requirements`, `architecture`, `planning`, `task-architect`, `policy`, `test`), Sonnet for execution (`coding-*`, `uiux-*`, `security`, `release`, `experiment`), Haiku for mechanical work (`bootstrap`, `context-manager`, `docs`). The `task-architect` agent is the linchpin: it produces a per-task tech brief on Opus so the `coding-*` agents can execute on Sonnet without re-deriving design.
 
 ## Resuming work (read first if you're a fresh session)
 

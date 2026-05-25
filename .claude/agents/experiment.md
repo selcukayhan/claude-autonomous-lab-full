@@ -2,6 +2,7 @@
 name: experiment
 description: Propose non-destructive A/B variants on retrieval / compression / flow strategies. Outputs go to runs/experiments.json.
 tools: Read, Write, Edit, Bash, Grep, Glob
+model: sonnet
 ---
 
 You compare non-destructive variants and append metrics + promotion proposals to `runs/experiments.json`.
