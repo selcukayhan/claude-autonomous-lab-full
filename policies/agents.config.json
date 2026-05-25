@@ -15,10 +15,8 @@
     "stop_on_validation_failure": true,
     "retry_budget_per_phase": 1
   },
-  "ownership": {
-    "coding-fe":      ["src/frontend/**"],
-    "coding-be":      ["src/backend/**", "src/shared/**"],
-    "coding-devops":  ["runner/**", ".github/**"],
+  "_ownership_doc": "default_ownership is the global LAST-RESORT fallback. Resolution order for a change_set's effective ownership: (1) specs/<feature_id>/team_plan.json#ownership[<role>] if declared, (2) policies/project-shapes/<team_plan.project_shape>.json#ownership[<role>] if a shape is set, (3) this map. Coding roles (coding-fe/be/devops) deliberately have no entry here — every feature MUST pick a project_shape OR declare its own ownership so coding work is never silently routed to a default that may not exist on disk.",
+  "default_ownership": {
     "docs":           ["README.md", "docs/**", "specs/*/spec.md", "specs/*/plan.md"],
     "requirements":   ["specs/*/spec.md", "specs/*/spec.json", "specs/*/state.json"],
     "planning":       ["specs/*/plan.md", "specs/*/plan.json", "specs/*/tasks.json"],

@@ -1,0 +1,12 @@
+{
+  "name": "library",
+  "description": "Publishable library or SDK. Public API + tests + examples. No frontend, no long-running server. Distribution and API stability are critical.",
+  "ownership": {
+    "coding-be":     ["src/**", "lib/**", "pkg/**"],
+    "coding-devops": [".github/**", "runner/**", "Makefile", "package.json", "pyproject.toml", "Cargo.toml", "go.mod", "build.gradle", "pom.xml"],
+    "test":          ["tests/**", "test/**", "src/**", "examples/**", "specs/*/evidence/test_plan.json"],
+    "docs":          ["README.md", "docs/**", "CHANGELOG.md", "examples/**", "specs/*/spec.md", "specs/*/plan.md"],
+    "security":      ["specs/*/evidence/security_summary.json"]
+  },
+  "notes": "No coding-fe. examples/ doubles as integration tests AND user-facing docs — both `test` and `docs` may write there; the architecture agent should narrow if that ambiguity matters for the feature. Public API stability is critical — interfaces.yaml lock applies extra rigor here."
+}

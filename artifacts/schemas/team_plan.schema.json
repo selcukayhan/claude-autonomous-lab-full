@@ -1,4 +1,7 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TeamPlan",
+  "description": "Per-feature ownership + recommended role mix authored by the architecture agent. project_shape and ownership together let any feature override the global default in policies/agents.config.json#default_ownership.",
   "type": "object",
   "required": [
     "primary_stack",
@@ -7,8 +10,21 @@
   "properties": {
     "primary_stack": {
       "type": "array",
-      "items": {
-        "type": "string"
+      "items": { "type": "string" },
+      "description": "Free-text list of the languages, frameworks, datastores, and runtime targets picked for this feature."
+    },
+    "project_shape": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "description": "Optional. Name of a preset under policies/project-shapes/<name>.json whose ownership map is used as the base. Per-feature `ownership` below (if present) overrides individual roles."
+    },
+    "ownership": {
+      "type": "object",
+      "description": "Optional. Per-role path globs that override the resolved shape preset (or the global default if no shape is set) FOR THIS FEATURE ONLY. Keys are role names; values are arrays of path globs.",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string" }
       }
     },
     "recommended_agents": {
@@ -21,22 +37,16 @@
           "count"
         ],
         "properties": {
-          "role": {
-            "type": "string"
-          },
+          "role": { "type": "string" },
           "domain": {
             "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "items": { "type": "string" }
           },
           "count": {
             "type": "integer",
             "minimum": 1
           },
-          "rationale": {
-            "type": "string"
-          }
+          "rationale": { "type": "string" }
         }
       }
     }

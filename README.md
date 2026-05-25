@@ -135,7 +135,8 @@ claude-autonomous-lab/
 ├── policies/                         # Quality gates, governance, agent ownership
 │   ├── quality-gates.json
 │   ├── context-governance.json
-│   └── agents.config.json
+│   ├── agents.config.json            # global default_ownership + role enable/disable
+│   └── project-shapes/               # web-fullstack / monorepo / cli / library / ml-pipeline
 │
 ├── specs/                            # PER-FEATURE workspace
 │   ├── README.md                     # explains the lifecycle
@@ -169,10 +170,10 @@ claude-autonomous-lab/
 │   ├── trello.config.json            # public Trello config (board topology, labels)
 │   └── trello.config.local.json      # gitignored credentials
 │
-├── src/                              # Code (FE / BE / Shared) — produced by coding agents
-│   ├── frontend/                     # coding-fe scope
-│   ├── backend/                      # coding-be scope
-│   └── shared/                       # coding-be scope
+├── src/                              # Default source tree for web-fullstack-shaped features;
+│   ├── frontend/                     #   other project_shapes use different roots
+│   ├── backend/                      #   (cli → cmd/, library → lib/, monorepo → apps/+services/)
+│   └── shared/                       # See policies/project-shapes/
 │
 ├── runs/                             # Cross-feature persistence (committed)
 │   ├── framework_map.json            # bootstrap agent output
@@ -182,6 +183,30 @@ claude-autonomous-lab/
 │
 └── .github/workflows/ci.yml          # CI mirror of runner/validate.sh
 ```
+
+---
+
+## Project shapes (build anything, not just web apps)
+
+The framework supports any kind of software, not just two-tier web/mobile apps. Each feature picks a **project shape** when the architecture phase writes `team_plan.json`:
+
+| Shape | When to pick | Where code lives |
+|---|---|---|
+| `web-fullstack` | Two-tier client/server (web, mobile, desktop) | `src/frontend/` + `src/backend/` |
+| `monorepo` | Multiple apps and/or services in one repo | `apps/*/` + `services/*/` |
+| `cli` | Single-binary command-line tool | `src/`, `cmd/`, `internal/`, `pkg/` |
+| `library` | Publishable library / SDK | `src/`, `lib/`, `examples/` |
+| `ml-pipeline` | Data / ML project with notebooks + pipelines | `pipelines/`, `notebooks/`, `models/` |
+
+The architecture agent picks one and writes `team_plan.json#project_shape = "<name>"`. Per-feature `team_plan.json#ownership` further narrows the shape's globs (e.g. a monorepo feature scoped to `services/auth/**`).
+
+**Resolution order** (used by `runner/validate.sh` when checking that change_sets stay in scope):
+
+1. `specs/<feature_id>/team_plan.json#ownership[<role>]` — per-feature override
+2. `policies/project-shapes/<project_shape>.json#ownership[<role>]` — shape preset
+3. `policies/agents.config.json#default_ownership[<role>]` — global fallback (covers non-coding roles like `docs`, `requirements`, `planning`, etc.)
+
+**Adding a new shape:** drop a JSON file into `policies/project-shapes/` matching `artifacts/schemas/project_shape.schema.json`. The architecture agent picks it up automatically.
 
 ---
 

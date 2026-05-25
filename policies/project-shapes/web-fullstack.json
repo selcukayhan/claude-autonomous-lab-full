@@ -1,0 +1,13 @@
+{
+  "name": "web-fullstack",
+  "description": "Two-tier client/server app (web, mobile, desktop). FE talks to BE over HTTP/WS. Examples: React+Node, Vue+Django, RN+Fastify, Next.js+API, Swift+gRPC.",
+  "ownership": {
+    "coding-fe":      ["src/frontend/**"],
+    "coding-be":      ["src/backend/**", "src/shared/**"],
+    "coding-devops":  ["runner/**", ".github/**", "docker/**", "infra/**"],
+    "test":           ["src/frontend/**", "src/backend/**", "tests/**", "specs/*/evidence/test_plan.json"],
+    "docs":           ["README.md", "docs/**", "specs/*/spec.md", "specs/*/plan.md"],
+    "security":       ["specs/*/evidence/security_summary.json"]
+  },
+  "notes": "Closest fit when the architecture phase picks any client-server stack. Use `monorepo` instead if the feature spans multiple apps or services."
+}

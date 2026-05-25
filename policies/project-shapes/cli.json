@@ -1,0 +1,12 @@
+{
+  "name": "cli",
+  "description": "Single-binary command-line tool. No frontend; code lives under src/, cmd/, internal/, or pkg/ (language-idiomatic).",
+  "ownership": {
+    "coding-be":     ["src/**", "cmd/**", "internal/**", "pkg/**", "lib/**"],
+    "coding-devops": ["runner/**", ".github/**", "Makefile", "Dockerfile", "infra/**", "scripts/**"],
+    "test":          ["tests/**", "test/**", "src/**", "cmd/**", "specs/*/evidence/test_plan.json"],
+    "docs":          ["README.md", "docs/**", "man/**", "specs/*/spec.md", "specs/*/plan.md"],
+    "security":      ["specs/*/evidence/security_summary.json"]
+  },
+  "notes": "coding-fe is not spawned for this shape. team_plan.json#recommended_agents should reflect that. Tests typically co-located with source for Go/Rust/Python projects — the `test` role's globs intentionally overlap source paths."
+}

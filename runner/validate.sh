@@ -77,26 +77,96 @@ for f in .claude/agents/*.md; do
       || fail "$f: body invokes 'bash runner/...sh' but Bash is not in tools"
   fi
 
-  # Every agent that has an entry in policies/agents.config.json#ownership
+  # Every agent that has an entry in policies/agents.config.json#default_ownership
   # should expose Read+Write+Edit since ownership implies write authority.
   if [ -f policies/agents.config.json ] && \
-     jq -e --arg n "$name" '.ownership[$n]' policies/agents.config.json >/dev/null 2>&1; then
+     jq -e --arg n "$name" '.default_ownership[$n]' policies/agents.config.json >/dev/null 2>&1; then
     for required in Read Write Edit; do
       has_tool "$tools_n" "$required" \
-        || fail "$f: $name owns paths in policies/agents.config.json but lacks '$required' in tools"
+        || fail "$f: $name owns paths in policies/agents.config.json#default_ownership but lacks '$required' in tools"
     done
   fi
 done
 
 [ "$declare_count" -gt 0 ] || fail ".claude/agents/ has no agent manifests"
 
-# Every role with declared ownership must have a manifest file on disk.
+# Every role with declared default_ownership must have a manifest file on disk.
 if [ -f policies/agents.config.json ]; then
   while IFS= read -r role; do
     [ -f ".claude/agents/$role.md" ] \
-      || fail "policies/agents.config.json declares ownership for '$role' but .claude/agents/$role.md is missing"
-  done < <(jq -r '.ownership | keys[]' policies/agents.config.json)
+      || fail "policies/agents.config.json declares default_ownership for '$role' but .claude/agents/$role.md is missing"
+  done < <(jq -r '.default_ownership | keys[]' policies/agents.config.json)
 fi
+
+# -- Project-shape templates --------------------------------------------------
+# Validate every policies/project-shapes/*.json against the schema (best-effort)
+# and check that its filename basename equals its `name` field. Cheap sanity.
+echo "[Validate] Project shapes"
+for shape in policies/project-shapes/*.json; do
+  [ -f "$shape" ] || continue
+  if [ -n "$AJV" ] && [ -f artifacts/schemas/project_shape.schema.json ]; then
+    $AJV validate -s artifacts/schemas/project_shape.schema.json -d "$shape" >/dev/null \
+      || fail "$shape fails project_shape.schema.json"
+  fi
+  expected=$(basename "$shape" .json)
+  got=$(jq -r .name "$shape")
+  [ "$expected" = "$got" ] || fail "$shape: name '$got' must equal filename basename '$expected'"
+done
+
+# -- Effective-ownership resolver --------------------------------------------
+# Given a feature_id and a role, print the role's effective path globs (one per
+# line). Resolution order:
+#   1. specs/<fid>/team_plan.json#ownership[<role>]      (per-feature override)
+#   2. policies/project-shapes/<team_plan.project_shape>.json#ownership[<role>]
+#   3. policies/agents.config.json#default_ownership[<role>]
+# Empty output = no globs declared anywhere; caller decides whether to enforce.
+resolve_ownership() {
+  local fid="$1" role="$2"
+  local tp="specs/$fid/team_plan.json" globs
+  if [ -f "$tp" ]; then
+    globs=$(jq -r --arg r "$role" '.ownership[$r][]? // empty' "$tp")
+    [ -n "$globs" ] && { printf '%s\n' "$globs"; return; }
+    local shape
+    shape=$(jq -r '.project_shape // empty' "$tp")
+    if [ -n "$shape" ] && [ -f "policies/project-shapes/$shape.json" ]; then
+      globs=$(jq -r --arg r "$role" '.ownership[$r][]? // empty' "policies/project-shapes/$shape.json")
+      [ -n "$globs" ] && { printf '%s\n' "$globs"; return; }
+    fi
+  fi
+  if [ -f policies/agents.config.json ]; then
+    jq -r --arg r "$role" '.default_ownership[$r][]? // empty' policies/agents.config.json
+  fi
+}
+
+# Does path "$1" match any of the globs on stdin? Supports trailing `/**`
+# (recursive prefix) and exact literal match. Other shell-glob meta is treated
+# as literal — keep patterns simple in shape files.
+path_in_globs() {
+  local path="$1" glob
+  while IFS= read -r glob; do
+    [ -z "$glob" ] && continue
+    if [[ "$glob" == *'/**' ]]; then
+      local prefix="${glob%/\*\*}"
+      case "$path" in
+        "$prefix"/*) return 0 ;;
+        "$prefix")   return 0 ;;
+      esac
+    elif [[ "$glob" == *'/*' ]]; then
+      local prefix="${glob%/\*}"
+      case "$path" in
+        "$prefix"/*) return 0 ;;
+      esac
+    elif [[ "$glob" == *'*'* ]]; then
+      # Single-segment wildcard in middle, e.g. specs/*/spec.md
+      local re
+      re=$(printf '%s' "$glob" | sed 's/\./\\./g; s/\*\*/[A-Z]/g; s/\*/[^\/]*/g; s/\[A-Z\]/.*/g')
+      [[ "$path" =~ ^$re$ ]] && return 0
+    else
+      [ "$path" = "$glob" ] && return 0
+    fi
+  done
+  return 1
+}
 
 # Walk every feature directory under specs/ (excluding the template).
 shopt -s nullglob
@@ -170,6 +240,22 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
       .tasks[] | select(.id == $t) | (.spec_criterion_refs | sort) as $tr |
       ($tr - $cs_refs[0]) + ($cs_refs[0] - $tr) | .[]' "$tasks_json")
     [ -z "$diff_l" ] || fail "$cs#spec_criterion_refs differs from task: $diff_l"
+
+    # Cross-check every change_set file against the resolved ownership for the
+    # change_set's owner role. Skip silently when no ownership is declared
+    # anywhere (legacy features authored before the project-shape system).
+    cs_owner=$(jq -r .owner "$cs")
+    globs=$(resolve_ownership "$fid" "$cs_owner")
+    if [ -n "$globs" ]; then
+      while IFS= read -r fp; do
+        [ -z "$fp" ] && continue
+        if ! printf '%s\n' "$globs" | path_in_globs "$fp"; then
+          fail "$cs file '$fp' is outside ownership[$cs_owner] for feature $fid (resolved globs: $(echo "$globs" | tr '\n' ' '))"
+        fi
+      done < <(jq -r '.files[].path' "$cs")
+    else
+      echo "[Validate] $cs: no ownership declared for role '$cs_owner' anywhere — skipping path cross-check (consider adding project_shape to specs/$fid/team_plan.json)."
+    fi
   done
 
   # -- staging/hitl/ must be empty for the feature to be considered passing --

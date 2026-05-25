@@ -75,11 +75,13 @@ Agents must emit a `hitl_request` artifact under
 commits while a HITL request is pending.
 
 ## Ownership (binding)
-- **FE:** `src/frontend/**`
-- **BE:** `src/backend/**`, `src/shared/**`
-- **DevOps:** `runner/**`, `.github/**`
-- **Docs:** `README.md`, `docs/**`, `specs/*/spec.md`, `specs/*/plan.md`
-- **Requirements / Planning / Architecture / etc.:** see `policies/agents.config.json#ownership`
+Ownership is resolved per-feature, not globally. Look it up in this order:
+
+1. **`specs/<feature_id>/team_plan.json#ownership[<role>]`** — per-feature override (written by `architecture`).
+2. **`policies/project-shapes/<team_plan.project_shape>.json#ownership[<role>]`** — the shape preset (web-fullstack / monorepo / cli / library / ml-pipeline). See `policies/project-shapes/README.md`.
+3. **`policies/agents.config.json#default_ownership[<role>]`** — global fallback for non-coding roles (docs, requirements, planning, architecture, policy, etc.).
+
+Coding-role ownership (`coding-fe`, `coding-be`, `coding-devops`) is INTENTIONALLY absent from the global default — every feature must pick a `project_shape` or declare its own coding-role globs so work isn't silently routed to paths that don't exist on disk.
 
 Cross-boundary edits require an explicit `team_plan.json` entry plus
 reconciliation by the `architecture` agent.

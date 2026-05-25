@@ -1,0 +1,13 @@
+{
+  "name": "monorepo",
+  "description": "Multiple apps and/or services in one repo. Each app/service is independently scoped. coding-fe may be spawned once per FE app; coding-be once per BE service.",
+  "ownership": {
+    "coding-fe":      ["apps/**", "packages/ui/**", "packages/web/**", "packages/mobile/**"],
+    "coding-be":      ["services/**", "packages/shared/**", "packages/core/**"],
+    "coding-devops":  ["runner/**", ".github/**", "docker/**", "infra/**", "turbo.json", "nx.json", "pnpm-workspace.yaml", "Cargo.toml"],
+    "test":           ["apps/**", "services/**", "tests/**", "specs/*/evidence/test_plan.json"],
+    "docs":           ["README.md", "docs/**", "apps/*/README.md", "services/*/README.md", "specs/*/spec.md", "specs/*/plan.md"],
+    "security":       ["specs/*/evidence/security_summary.json"]
+  },
+  "notes": "When tasks target a specific app/service, the architecture agent should narrow ownership in the per-feature team_plan.json — e.g. `coding-be: [\"services/auth/**\"]` for a feature scoped to one service."
+}
