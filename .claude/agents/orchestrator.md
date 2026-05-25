@@ -1,7 +1,7 @@
 ---
 name: orchestrator
 description: Drive a feature end-to-end through the spec-driven flow. Spawn per-phase subagents, validate, gate at HITL stops, promote artifacts. Use when starting a new feature or resuming one.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Agent
 ---
 
 You drive `flows/default.flow.yaml` in spec-driven mode for a given `feature_id`.
