@@ -1,7 +1,7 @@
 {
-  "runs": 1,
+  "runs": 3,
   "avg_tokens": 0,
   "success_rate": 1.0,
-  "patterns_added": 14,
-  "notes": "First spec-driven feature (001-pet-health-app) executed against the framework converted from agentic-SDLC to SDD in the same session. Both completed HITL gates (spec_lock_review, plan_lock_review) passed on first review. One subagent spawn (coding-fe / T001) completed successfully with no scope violations. 0 validator failures, 0 schema violations, 0 ownership rejections at the task-execution level. avg_tokens left at 0 pending instrumentation in a future runner enhancement."
+  "patterns_added": 24,
+  "notes": "Three complete features on feat/001-pet-health-app: (1) 001-pet-health-app (35 tasks, FE/BE/DevOps, RN+Node Lean MVP, pre_merge_review approved); (2) 002-webpack-migration (3 tasks, build-tooling sub-feature, plan_lock_review pending); (3) 002-agent-telemetry (framework upgrade, task-update.sh + telemetry schema live on feat branch). All HITL gates executed cleanly. Feature 002's flow_deviation (spec→planning skipping ux_research/architecture/ux_design) demonstrated safe sub-feature isolation. 10 new patterns extracted: agent-tool gaps, sub-feature SDD, RN code hazards, bundler-layer solutions, RN-navigation patterns, RN-on-web CSS, browser-based FE testing, provenance discipline, and parallel-batch contention. avg_tokens instrumented starting batch 5 (telemetry.jsonl has 34+ samples)."
 }
