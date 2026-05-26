@@ -9,7 +9,48 @@ constitution → spec (locked) → plan (locked) → tasks → tech_briefs → c
 Every step is gated by either an automated validator or a Human-in-the-Loop
 (HITL) review. The orchestrator never lets an agent skip a gate.
 
-**Model tiering.** Each agent declares its model in `.claude/agents/<name>.md` frontmatter. Opus for reasoning (`orchestrator`, `requirements`, `architecture`, `planning`, `task-architect`, `policy`, `test`), Sonnet for execution (`coding-*`, `uiux-*`, `security`, `release`, `experiment`), Haiku for mechanical work (`bootstrap`, `context-manager`, `docs`). The `task-architect` agent is the linchpin: it produces a per-task tech brief on Opus so the `coding-*` agents can execute on Sonnet without re-deriving design.
+## Orchestration responsibility (binding)
+
+**The main Claude Code session IS the orchestrator for spec-driven work.** Read `.claude/agents/orchestrator.md` for the full protocol and execute it yourself. Do NOT spawn that file via the Agent tool — the Agent grant strips at spawn (see `feedback_orchestrator_top_level.md` memory).
+
+### Trigger phrases that activate orchestrator mode (binding)
+
+When the user says any of:
+
+- "Start a new feature: …" / "Let's build …" / "New spec for …"
+- "Continue feature N" / "Resume feature N"
+- "Approve <hitl_gate>" / "Lock the spec" / "Lock the plan"
+- "Drop these mockups for a new feature" / "Build this from the design"
+- An equivalent intent ("I want to add …" or "we should ship …" + concrete scope)
+
+Read `.claude/agents/orchestrator.md` fully and execute its protocol yourself. Spawn phase agents (requirements / architecture / planning / task-architect / coding-* / test / docs) via the Agent tool. Halt at HITL gates per constitution §III.
+
+### What does NOT activate orchestrator mode
+
+- Quick questions about the codebase, framework, or running services
+- Debugging, refactors, lint fixes, type errors
+- Framework / config / memory edits
+- Ad-hoc work without a spec
+- Anything where the user gave you a specific file to edit
+
+For those, handle directly as main session — no SDD flow, no spec.json, no HITL.
+
+### Subagent spawning — required overrides
+
+When spawning subagents via the Agent tool:
+
+- **Always pass `model:` explicitly** — frontmatter `model:` is ignored at spawn time (`feedback_agent_model_param.md`). Pass `"opus"` / `"sonnet"` / `"haiku"` per the tier table below.
+- Subagents inherit only Read/Write/Edit/Bash/Grep/Glob — never `Agent`. They cannot recursively fan out.
+
+### Model tier table (binding for spawn calls)
+
+| Tier | Roles | Pass on Agent call |
+|---|---|---|
+| Opus | requirements, architecture, planning, task-architect, policy, test | `model: "opus"` |
+| Sonnet | coding-fe, coding-be, coding-devops, uiux-researcher, uiux-designer, security, release, experiment | `model: "sonnet"` |
+| Haiku | bootstrap, context-manager, docs | `model: "haiku"` |
+
+The main session itself is the Opus tier (it plays orchestrator) — no `model` param needed when YOU act as orchestrator, only when you spawn.
 
 ## Resuming work (read first if you're a fresh session)
 

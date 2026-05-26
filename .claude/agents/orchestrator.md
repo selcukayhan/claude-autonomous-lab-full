@@ -1,9 +1,19 @@
 ---
 name: orchestrator
-description: Drive a feature end-to-end through the spec-driven flow. Spawn per-phase subagents, validate, gate at HITL stops, promote artifacts. Use when starting a new feature or resuming one.
+description: Protocol for driving a feature end-to-end through the spec-driven flow. Read and executed BY THE MAIN CLAUDE CODE SESSION — not spawned via Agent tool.
 tools: Read, Write, Edit, Bash, Grep, Glob, Agent
 model: opus
 ---
+
+> **NOTE — this file is the orchestrator PROTOCOL, not a spawnable subagent.**
+> The main Claude Code session executes this protocol directly when the user
+> expresses orchestrator-mode intent (see `CLAUDE.md` §Orchestration responsibility
+> for trigger phrases). DO NOT spawn this via the Agent tool — the Agent grant
+> strips at spawn and the spawned orchestrator can't recursively spawn its phase
+> agents. See `feedback_orchestrator_top_level.md` memory for the empirical
+> confirmation. The `tools:` frontmatter is kept for historical compatibility and
+> for the validator's manifest-lint, NOT because this file is meant to be
+> instantiated as a Claude Code subagent at runtime.
 
 You drive `flows/default.flow.yaml` in spec-driven mode for a given `feature_id`.
 
@@ -30,21 +40,28 @@ When a new feature starts:
    - STOP. Report to the user.
    - **Do NOT do the subagent's work yourself.** Impersonation corrupts change_set provenance (`agent_id` ends up `orchestrator` instead of the role that should own it) and bypasses the role's scoped tool grant + ownership rules. Wrong attribution is worse than a paused flow.
 3. After each subagent returns:
-   - **Capture telemetry from the Agent return's `<usage>` block** and stamp it on the change_set + Trello card. Parse the usage block (it surfaces `total_tokens`, `tool_uses`, `duration_ms`), then run:
+   - **(NON-SKIPPABLE, even in autonomous + parallel-batch mode.) Capture telemetry from the Agent return's `<usage>` block** and stamp it on the change_set + Trello card. Parse the usage block (it surfaces `total_tokens`, `tool_uses`, `duration_ms`), then run:
      ```
      bash runner/task-update.sh <feature_id> <task_id> completed --telemetry-json '{
-       "model": "<model id you spawned the agent with, e.g. claude-opus-4-7>",
+       "model": "<model id you spawned the agent with, e.g. claude-sonnet-4-6>",
        "duration_ms": <from <usage>>,
        "total_tokens": <from <usage>>,
        "tool_uses": <from <usage>>
      }'
      ```
-     This (a) is a no-op for status (agent already flipped to completed), (b) merges the orchestrator-only fields into the change_set's `telemetry` block (agent already wrote `agent_id`, `started_at`, `finished_at`), (c) appends a line to `runs/telemetry.jsonl`, (d) posts a Trello comment with the full footer on the completed card. Run exactly once per Agent return.
+     This (a) is a no-op for status (agent already flipped to completed), (b) merges the orchestrator-only fields into the change_set's `telemetry` block (agent already wrote `agent_id`, `started_at`, `finished_at`), (c) appends a line to `runs/telemetry.jsonl`, (d) posts a Trello comment with the full footer on the completed card. **Run exactly once per Agent return.**
+
+     For parallel batches (N agents in one wave), call task-update.sh N times — one per returned agent. Don't batch into a "stamp them all at the end" pass; per-call you have the usage block in hand, later you don't. Skipping this corrupts `runs/telemetry.jsonl` (the input to future planning calibration) AND leaves change_sets with no model attribution — see `feedback_agent_model_param.md` memory for the 003 example where 19 FE change_sets had to be backfilled because this step was skipped.
    - Run `bash runner/validate.sh`. Refuse to advance if validation fails.
    - **Append the subagent's work to `specs/<feature_id>/evidence/feature_summary.md`** (Per-agent table + Phase log row). Keep §1–§2 stable; §3–§5 update with each return; §6 only changes when a new cross-cutting constraint emerges.
    - For per-task live status, `task-update.sh` already pushed to Trello. Run `bash runner/trello-sync.sh <feature_id>` only on full re-syncs (after a phase transition that touched many tasks at once, or after a manual `tasks.json` edit).
 4. At HITL stops (`spec_lock_review`, `plan_lock_review`, `pre_merge_review`, `constitution_amendment`, `public_api_change_post_lock`):
    - Write `specs/<feature_id>/staging/hitl/<stop_id>.json` with a clear approval procedure.
+   - **Special case: `plan_lock_review`** — immediately after `tasks_decompose` produces `tasks.json`, AND before emitting the HITL request file, run:
+     ```
+     bash runner/trello-sync.sh <feature_id>
+     ```
+     This pushes every task as a Trello card BEFORE the human reviews `plan_lock_review`, so they can browse the full task list on the board during HITL. Without this step the board stays empty until the user manually approves — which means the HITL reviewer is approving a tasks.json they only see as JSON. The trello-sync.sh script must permit sync at `status: "in_review"` for this to work (gate updated 2026-05-26).
    - Update `state.json` (`hitl_pending: <stop_id>`). STOP. Report the gate to the user.
 5. When a feature reaches `lifecycle: completed`, prompt the `context-manager` to distill new patterns into `runs/learned_patterns.json` and refresh `runs/benefit_report.json`.
 

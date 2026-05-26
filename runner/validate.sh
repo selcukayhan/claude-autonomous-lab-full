@@ -14,6 +14,17 @@ for d in artifacts agents flows policies specs; do
   test -d "$d" || { echo "[Validate] missing $d/"; exit 1; }
 done
 test -f constitution.md || { echo "[Validate] missing constitution.md"; exit 1; }
+test -f CLAUDE.md || { echo "[Validate] missing CLAUDE.md"; exit 1; }
+
+# CLAUDE.md must contain the Orchestration responsibility section that binds
+# the main Claude Code session to act as orchestrator. Removing this section
+# accidentally would silently revert the framework to "spawn orchestrator via
+# Agent tool" which is known-broken (Agent grant strips at spawn — see
+# feedback_orchestrator_top_level memory).
+grep -qE '^##[[:space:]]+Orchestration responsibility' CLAUDE.md \
+  || { echo "[Validate] CLAUDE.md missing '## Orchestration responsibility' section — main session must be bound as orchestrator (see feedback_orchestrator_top_level.md)"; exit 1; }
+grep -qE 'Trigger phrases that activate orchestrator mode' CLAUDE.md \
+  || { echo "[Validate] CLAUDE.md Orchestration section missing the 'Trigger phrases' sub-block — main session needs explicit triggers"; exit 1; }
 
 # -- jq required --
 if ! command -v jq >/dev/null 2>&1; then
@@ -180,16 +191,11 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   echo "[Validate] Feature: $fid"
 
   # Project-dir existence check. Features created under the new convention
-  # output code to projects/<fid>/. A feature is treated as "legacy" (exempt
-  # from modern structural checks) when ANY of the following hold:
-  #   (a) team_plan.json is missing entirely — the feature either pre-dates
-  #       the architecture phase OR opted out via flow_deviation
-  #       (002-webpack-migration is the canonical example: skipped
-  #       architecture, never authored team_plan.json).
-  #   (b) team_plan.json exists with "legacy_layout": true — explicit
-  #       opt-out for features whose code pre-dates the projects/<fid>/
-  #       convention (001-pet-health-app is the canonical example).
-  # Both conditions skip the projects-dir AND the tech_brief checks below.
+  # output code to projects/<fid>/. Skip when the feature is "legacy":
+  # either team_plan.json is missing entirely (feature pre-dates the
+  # architecture phase OR opted out via flow_deviation like
+  # 002-webpack-migration), OR team_plan.json#legacy_layout = true
+  # (explicit opt-out like 001-pet-health-app).
   tp="$feature_dir/team_plan.json"
   legacy=false
   if [ ! -f "$tp" ]; then
@@ -275,8 +281,9 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
 
     # Tech-brief enforcement (only for coding-* roles — other roles like
     # `test`, `docs`, `security` don't go through the task-architect phase).
-    # Skipped for legacy features (see legacy resolution above) since their
-    # change_sets pre-date the task-architect phase.
+    # Skipped for features that pre-date the task-architect phase: features
+    # with team_plan.json#legacy_layout = true OR no team_plan.json at all
+    # (these are old features authored before the modern framework).
     if [ "$legacy" = "false" ]; then
       case "$cs_owner" in
         coding-*)
