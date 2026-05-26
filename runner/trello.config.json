@@ -1,6 +1,12 @@
 {
   "enabled": true,
-  "_comment": "Public Trello sync config. Secrets live in runner/trello.config.local.json (gitignored). Per-board IDs are written into each specs/<feature_id>/state.json#trello after first sync.",
+  "_comment": "Public Trello sync config. Secrets live in runner/trello.config.local.json (gitignored). Single project board model: ONE board for the whole product (here: TailTrack); each feature identified by a feat:<feature_short_id> label. Per-task trello_card_id is written into tasks.json after first sync. Migration from per-feature boards: runner/trello-migrate-to-project-board.sh (one-shot).",
+
+  "project_board": {
+    "name": "TailTrack",
+    "description": "TailTrack — single project board synced from this repo's specs/. Each feature (001, 002, 003, …) is identified by a feat:<feature_short_id> label. Lists track lifecycle (Pending / In Progress / Blocked / Completed). Cards prefixed [<feature_short_id>] for at-a-glance ID."
+  },
+
   "list_order": ["Pending", "In Progress", "Blocked", "Completed"],
   "status_to_list": {
     "pending": "Pending",
@@ -9,7 +15,8 @@
     "completed": "Completed",
     "cancelled": "Completed"
   },
-  "labels": {
+
+  "owner_labels": {
     "coding-fe":     "blue",
     "coding-be":     "green",
     "coding-devops": "purple",
@@ -17,9 +24,17 @@
     "docs":          "sky",
     "security":      "red"
   },
-  "board_name_pattern": "{feature_id}",
-  "board_description_pattern": "Synced from specs/{feature_id}/tasks.json. tasks.json is the source of truth — moving cards here will be overwritten on next sync.",
+
+  "feature_labels": {
+    "_comment": "Auto-created on first sync of each feature. Colors rotate through color_pool by feature index (001=first, 002=second, …). Trello has ~10 colors; pool deduped against owner_labels to avoid visual collision.",
+    "color_pool": ["orange", "pink", "lime", "black", "sky_light"],
+    "name_template": "feat:{feature_short_id}"
+  },
+
+  "card_name_template": "[{feature_short_id}] {task_id} — {task_title}",
+
   "card_description_template": [
+    "**Feature:** {feature_id}",
     "**Status:** {status}",
     "**Owner:** {owner}",
     "**Spec ACs:** {spec_criterion_refs}",
@@ -36,5 +51,19 @@
     "🔗 Source: `specs/{feature_id}/tasks.json#{id}`",
     "🔒 Locked plan: `specs/{feature_id}/plan.md`",
     "📜 Spec: `specs/{feature_id}/spec.md`"
-  ]
+  ],
+
+  "_deprecated_will_be_removed": {
+    "_comment": "Legacy keys retained for one release so trello-migrate-to-project-board.sh can still read the previous per-feature topology. trello-sync.sh + task-update.sh no longer use these.",
+    "labels": {
+      "coding-fe":     "blue",
+      "coding-be":     "green",
+      "coding-devops": "purple",
+      "test":          "yellow",
+      "docs":          "sky",
+      "security":      "red"
+    },
+    "board_name_pattern": "{feature_id}",
+    "board_description_pattern": "(legacy — per-feature board model)"
+  }
 }

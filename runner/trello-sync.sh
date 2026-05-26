@@ -81,24 +81,54 @@ trello_post_card_comment() {
   trello_post "/cards/$CARD_ID/actions/comments?text=$ENCODED" > /dev/null
 }
 
+_trello_short_fid() {
+  # "003-routines-reminders" → "003"   |   "001-pet-health-app" → "001"
+  echo "$1" | grep -oE '^[0-9]+' || echo "$1"
+}
+
 _trello_ensure_board() {
-  BOARD_ID=$(jq -r '.trello.board_id // empty' "$STATE" 2>/dev/null || echo "")
-  if [ -n "$BOARD_ID" ]; then
-    echo "[Trello] Using existing board: $BOARD_ID"
-    return 0
+  # Single project board (e.g. TailTrack) shared across ALL features.
+  # Lookup order: state.json#trello.project_board_id → state.json#trello.board_id
+  # (legacy, may still be set from per-feature era) → search Trello by name → create.
+  BOARD_ID=$(jq -r '.trello.project_board_id // .trello.board_id // empty' "$STATE" 2>/dev/null || echo "")
+  if [ -n "$BOARD_ID" ] && [ "$BOARD_ID" != "DRY_BOARD" ]; then
+    # Verify the recorded board still exists + matches the expected name (catches
+    # stale per-feature-era IDs that point to soon-to-be-archived boards).
+    local CURRENT_NAME
+    CURRENT_NAME=$(trello_get "/boards/$BOARD_ID?fields=name" 2>/dev/null | jq -r '.name // empty')
+    local EXPECTED_NAME
+    EXPECTED_NAME=$(jq -r '.project_board.name' "$CFG")
+    if [ "$CURRENT_NAME" = "$EXPECTED_NAME" ]; then
+      echo "[Trello] Using existing project board: $BOARD_ID ($CURRENT_NAME)"
+      return 0
+    fi
+    # Stale (per-feature board, or name changed). Fall through to search/create.
+    echo "[Trello] state.json#trello.board_id=$BOARD_ID is stale (name='$CURRENT_NAME', expected='$EXPECTED_NAME'); re-resolving against project board."
+    BOARD_ID=""
   fi
 
   local BOARD_NAME BOARD_DESC
-  BOARD_NAME=$(jq -r --arg fid "$FEATURE_ID" '.board_name_pattern | gsub("\\{feature_id\\}"; $fid)' "$CFG")
-  BOARD_DESC=$(jq -r --arg fid "$FEATURE_ID" '.board_description_pattern | gsub("\\{feature_id\\}"; $fid)' "$CFG")
-  echo "[Trello] Creating board '$BOARD_NAME'"
+  BOARD_NAME=$(jq -r '.project_board.name'        "$CFG")
+  BOARD_DESC=$(jq -r '.project_board.description' "$CFG")
+
+  # Search workspace for an existing board with this name (idempotency across features).
+  local EXISTING_BOARDS
+  EXISTING_BOARDS=$(trello_get "/members/me/boards?fields=name,closed&filter=open") || EXISTING_BOARDS="[]"
+  BOARD_ID=$(echo "$EXISTING_BOARDS" | jq -r --arg n "$BOARD_NAME" '.[] | select(.name == $n and (.closed // false) == false) | .id' | head -1)
+
+  if [ -n "$BOARD_ID" ]; then
+    echo "[Trello] Found existing project board: $BOARD_ID ($BOARD_NAME)"
+    return 0
+  fi
+
+  echo "[Trello] Creating project board '$BOARD_NAME'"
   if [ "$DRY" -eq 0 ]; then
     local BODY RESP
     BODY="name=$(jq -rn --arg v "$BOARD_NAME" '$v|@uri')&desc=$(jq -rn --arg v "$BOARD_DESC" '$v|@uri')&defaultLists=false&prefs_permissionLevel=private"
     if [ "$WORKSPACE_ID" != "null" ] && [ -n "$WORKSPACE_ID" ]; then BODY="$BODY&idOrganization=$WORKSPACE_ID"; fi
     RESP=$(trello_post "/boards/" -d "$BODY") || { echo "[Trello] board create failed" >&2; exit 1; }
     BOARD_ID=$(echo "$RESP" | jq -r '.id')
-    echo "[Trello] Board created: $BOARD_ID"
+    echo "[Trello] Project board created: $BOARD_ID"
   else
     BOARD_ID="DRY_BOARD"
   fi
@@ -134,11 +164,13 @@ _trello_ensure_lists_and_labels() {
     EXISTING_LABELS=$(trello_get "/boards/$BOARD_ID/labels?fields=name,color&limit=1000") || EXISTING_LABELS="[]"
   fi
 
+  # Owner labels: coding-fe / coding-be / coding-devops / test / docs / security.
+  # Cached EXISTING_LABELS gets re-fetched after _trello_ensure_feature_label appends a feat: label.
   while IFS= read -r K; do
-    COLOR=$(jq -r --arg k "$K" '.labels[$k]' "$CFG")
+    COLOR=$(jq -r --arg k "$K" '.owner_labels[$k]' "$CFG")
     LBID=$(echo "$EXISTING_LABELS" | jq -r --arg n "$K" '.[] | select(.name==$n) | .id' | head -1)
     if [ -z "$LBID" ]; then
-      echo "[Trello] Creating label: $K ($COLOR)"
+      echo "[Trello] Creating owner label: $K ($COLOR)"
       if [ "$DRY" -eq 0 ]; then
         RESP=$(trello_post "/labels?name=$(jq -rn --arg v "$K" '$v|@uri')&color=$COLOR&idBoard=$BOARD_ID") || { echo "label create failed for $K" >&2; exit 1; }
         LBID=$(echo "$RESP" | jq -r '.id')
@@ -147,7 +179,47 @@ _trello_ensure_lists_and_labels() {
       fi
     fi
     LABEL_IDS_JSON=$(echo "$LABEL_IDS_JSON" | jq --arg n "$K" --arg id "$LBID" '. + {($n): $id}')
-  done < <(jq -r '.labels | keys[]' "$CFG")
+  done < <(jq -r '.owner_labels | keys[]' "$CFG")
+}
+
+# Ensure a feat:<short_fid> label exists on the project board for the current
+# FEATURE_ID. Rotates color from .feature_labels.color_pool (deterministic by
+# feature index — 001 = first color, 002 = second, …). Persists to
+# state.json#trello.feature_label_id. Sets FEATURE_LABEL_ID global.
+_trello_ensure_feature_label() {
+  local SHORT_FID NAME COLOR EXISTING POOL_LEN IDX
+  SHORT_FID=$(_trello_short_fid "$FEATURE_ID")
+  NAME="feat:$SHORT_FID"
+
+  FEATURE_LABEL_ID=$(jq -r '.trello.feature_label_id // empty' "$STATE" 2>/dev/null || echo "")
+  if [ -n "$FEATURE_LABEL_ID" ] && [ "$FEATURE_LABEL_ID" != "DRY_FEAT" ]; then
+    echo "[Trello] Using existing feature label: $FEATURE_LABEL_ID ($NAME)"
+    return 0
+  fi
+
+  # Search board labels for this feat:<fid> name.
+  if [ "$BOARD_ID" != "DRY_BOARD" ]; then
+    EXISTING=$(trello_get "/boards/$BOARD_ID/labels?fields=name,color&limit=1000") || EXISTING="[]"
+    FEATURE_LABEL_ID=$(echo "$EXISTING" | jq -r --arg n "$NAME" '.[] | select(.name==$n) | .id' | head -1)
+    if [ -n "$FEATURE_LABEL_ID" ]; then
+      echo "[Trello] Found existing feature label: $FEATURE_LABEL_ID ($NAME)"
+      return 0
+    fi
+  fi
+
+  # Pick color: rotate through pool by feature index (1-based). "001"→idx 0, "003"→idx 2.
+  POOL_LEN=$(jq -r '.feature_labels.color_pool | length' "$CFG")
+  IDX=$(( (10#$SHORT_FID - 1) % POOL_LEN ))
+  COLOR=$(jq -r --arg i "$IDX" '.feature_labels.color_pool[$i | tonumber]' "$CFG")
+
+  echo "[Trello] Creating feature label: $NAME ($COLOR)"
+  if [ "$DRY" -eq 0 ]; then
+    local RESP
+    RESP=$(trello_post "/labels?name=$(jq -rn --arg v "$NAME" '$v|@uri')&color=$COLOR&idBoard=$BOARD_ID") || { echo "feature label create failed for $NAME" >&2; exit 1; }
+    FEATURE_LABEL_ID=$(echo "$RESP" | jq -r '.id')
+  else
+    FEATURE_LABEL_ID="DRY_FEAT"
+  fi
 }
 
 _trello_persist_state() {
@@ -155,9 +227,15 @@ _trello_persist_state() {
     local TMP
     TMP=$(mktemp)
     jq --arg bid "$BOARD_ID" \
+       --arg flid "$FEATURE_LABEL_ID" \
        --argjson lists  "$LIST_IDS_JSON" \
        --argjson labels "$LABEL_IDS_JSON" \
-       '.trello = (.trello // {}) | .trello.board_id = $bid | .trello.lists = $lists | .trello.labels = $labels' \
+       '.trello = (.trello // {})
+        | .trello.project_board_id = $bid
+        | .trello.board_id = $bid
+        | .trello.feature_label_id = $flid
+        | .trello.lists = $lists
+        | .trello.labels = $labels' \
        "$STATE" > "$TMP" && mv "$TMP" "$STATE"
   fi
 }
@@ -195,7 +273,7 @@ build_card_desc() {
 # Echoes a one-line summary to stdout.
 sync_one_task() {
   local TID="$1"
-  local TITLE STATUS OWNER CARD_ID LIST_NAME LIST_ID LABEL_ID CARD_NAME CARD_DESC RESP CARD_URL TMP BODY
+  local TITLE STATUS OWNER CARD_ID LIST_NAME LIST_ID OWNER_LABEL_ID CARD_NAME CARD_DESC RESP CARD_URL TMP BODY LABELS_CSV SHORT_FID
   TITLE=$( jq -r --arg id "$TID" '.tasks[] | select(.id==$id) | .title'  "$TASKS")
   STATUS=$(jq -r --arg id "$TID" '.tasks[] | select(.id==$id) | .status' "$TASKS")
   OWNER=$( jq -r --arg id "$TID" '.tasks[] | select(.id==$id) | .owner'  "$TASKS")
@@ -203,14 +281,20 @@ sync_one_task() {
 
   LIST_NAME=$(jq -r --arg s "$STATUS" '.status_to_list[$s] // "Pending"' "$CFG")
   LIST_ID=$(echo  "$LIST_IDS_JSON"  | jq -r --arg n "$LIST_NAME" '.[$n]')
-  LABEL_ID=$(echo "$LABEL_IDS_JSON" | jq -r --arg n "$OWNER"     '.[$n]')
-  CARD_NAME="$TID — $TITLE"
+  OWNER_LABEL_ID=$(echo "$LABEL_IDS_JSON" | jq -r --arg n "$OWNER" '.[$n]')
+
+  # Both owner + feature labels on every card. CSV per Trello API.
+  LABELS_CSV="$OWNER_LABEL_ID,$FEATURE_LABEL_ID"
+
+  # Card name: [<short_fid>] T<NNN> — <title>
+  SHORT_FID=$(_trello_short_fid "$FEATURE_ID")
+  CARD_NAME="[$SHORT_FID] $TID — $TITLE"
   CARD_DESC=$(build_card_desc "$TID" "$FEATURE_ID")
 
   if [ -z "$CARD_ID" ]; then
-    echo "  + create  $TID  [$LIST_NAME / $OWNER]"
+    echo "  + create  [$SHORT_FID] $TID  [$LIST_NAME / $OWNER]"
     if [ "$DRY" -eq 0 ]; then
-      BODY="name=$(jq -rn --arg v "$CARD_NAME" '$v|@uri')&idList=$LIST_ID&desc=$(jq -rn --arg v "$CARD_DESC" '$v|@uri')&idLabels=$LABEL_ID"
+      BODY="name=$(jq -rn --arg v "$CARD_NAME" '$v|@uri')&idList=$LIST_ID&desc=$(jq -rn --arg v "$CARD_DESC" '$v|@uri')&idLabels=$LABELS_CSV"
       RESP=$(trello_post "/cards" -d "$BODY") || { echo "card create failed for $TID" >&2; exit 1; }
       CARD_ID=$(echo "$RESP"  | jq -r '.id')
       CARD_URL=$(echo "$RESP" | jq -r '.shortUrl')
@@ -220,9 +304,9 @@ sync_one_task() {
          "$TASKS" > "$TMP" && mv "$TMP" "$TASKS"
     fi
   else
-    echo "  ~ update  $TID  [$LIST_NAME / $OWNER]  ($CARD_ID)"
+    echo "  ~ update  [$SHORT_FID] $TID  [$LIST_NAME / $OWNER]  ($CARD_ID)"
     if [ "$DRY" -eq 0 ]; then
-      BODY="name=$(jq -rn --arg v "$CARD_NAME" '$v|@uri')&idList=$LIST_ID&desc=$(jq -rn --arg v "$CARD_DESC" '$v|@uri')&idLabels=$LABEL_ID"
+      BODY="name=$(jq -rn --arg v "$CARD_NAME" '$v|@uri')&idList=$LIST_ID&desc=$(jq -rn --arg v "$CARD_DESC" '$v|@uri')&idLabels=$LABELS_CSV"
       trello_put "/cards/$CARD_ID" -d "$BODY" > /dev/null || { echo "card update failed for $TID" >&2; exit 1; }
     fi
   fi
@@ -238,6 +322,7 @@ trello_full_setup() {
   _trello_load_credentials
   _trello_ensure_board
   _trello_ensure_lists_and_labels
+  _trello_ensure_feature_label
   _trello_persist_state
 }
 
@@ -268,13 +353,23 @@ _trello_main() {
     exit 0
   fi
 
-  # Pre-flight: tasks.json must be active or frozen.
+  # Pre-flight: tasks.json must be at least in_review.
+  # Updated 2026-05-26: lowered gate from `active` to `in_review` so the human
+  # reviewer can browse the full Trello board during plan_lock_review HITL,
+  # instead of only seeing tasks after they've already approved the plan.
+  # Orchestrator runs trello-sync.sh as the last step of tasks_decompose,
+  # before emitting the plan_lock_review HITL request file.
   local TASKS_STATUS
   TASKS_STATUS=$(jq -r '.status' "$TASKS")
-  if [ "$TASKS_STATUS" != "active" ] && [ "$TASKS_STATUS" != "frozen" ] && [ "$TASKS_STATUS" != "completed" ]; then
-    echo "[Trello] tasks.status=$TASKS_STATUS — skipping. Sync runs only after plan_lock_review (status >= active)." >&2
-    exit 0
-  fi
+  case "$TASKS_STATUS" in
+    in_review|active|frozen|completed)
+      : # OK — sync proceeds
+      ;;
+    draft|*)
+      echo "[Trello] tasks.status=$TASKS_STATUS — skipping. Sync runs from in_review onward (drafts excluded)." >&2
+      exit 0
+      ;;
+  esac
 
   echo "[Trello] Feature: $FEATURE_ID  | tasks.status=$TASKS_STATUS"
 
@@ -283,6 +378,7 @@ _trello_main() {
 
   _trello_ensure_board
   _trello_ensure_lists_and_labels
+  _trello_ensure_feature_label
   _trello_persist_state
 
   local TASK_COUNT i TID
