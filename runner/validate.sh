@@ -42,6 +42,24 @@ fi
 
 fail() { echo "[Validate] FAIL: $*"; exit 1; }
 
+WARN_COUNT=0
+warn() { echo "[Validate] WARN: $*"; WARN_COUNT=$((WARN_COUNT + 1)); }
+
+# Parse an ISO-8601 timestamp into a Unix epoch. Tries GNU date first
+# (Linux/CI), falls back to BSD date (macOS). Echoes 0 on failure so callers
+# can treat unknown timestamps as "very old" and skip the suspicious-modify
+# check below.
+iso_to_epoch() {
+  local iso="$1"
+  [ -z "$iso" ] && { echo 0; return; }
+  local e
+  e=$(date -d "$iso" +%s 2>/dev/null) && { echo "$e"; return; }
+  # BSD date — try with and without the trailing Z.
+  e=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$iso" +%s 2>/dev/null) && { echo "$e"; return; }
+  e=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${iso%Z}" +%s 2>/dev/null) && { echo "$e"; return; }
+  echo 0
+}
+
 # -- Agent manifest invariants ------------------------------------------------
 # Static lint of .claude/agents/*.md frontmatter. Catches regressions like
 # "orchestrator silently lost its Agent tool" or "coding-fe loses Bash and
@@ -320,6 +338,49 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
     else
       echo "[Validate] $cs: no ownership declared for role '$cs_owner' anywhere — skipping path cross-check (consider adding project_shape to specs/$fid/team_plan.json)."
     fi
+
+    # -- change_set ↔ git-diff parity (agent over-reporting detector) --
+    # Catches the "agent reported file modified but disk shows no change"
+    # pattern. Heuristic: if a change_set claims a file was modified/created
+    # AFTER its last git commit AND the working tree shows no uncommitted
+    # changes for that file, the claimed modification likely never landed.
+    # Concrete incidents this catches: T043/T044 (4 nav files claimed but
+    # never edited), T045 (DOB swap reported but didn't ship), T046 (default
+    # 09:00 + HTML5 time picker reported but didn't ship). See
+    # runs/learned_patterns.json: "Agent change_set over-reporting".
+    cs_finished_iso=$(jq -r '.finished_at // .started_at // empty' "$cs")
+    cs_epoch=$(iso_to_epoch "$cs_finished_iso")
+    if [ "$cs_epoch" -gt 0 ]; then
+      while IFS=$'\t' read -r fp action lines_added; do
+        [ -z "$fp" ] && continue
+        # Treat null/missing action the same as modified|created (older
+        # change_sets predate the action field). Skip explicit deletions.
+        case "$action" in
+          deleted|removed) continue ;;
+        esac
+        [ "${lines_added:-0}" -gt 0 ] || continue
+        if [ ! -f "$fp" ]; then
+          [ "$action" = "created" ] && warn "$cs claims '$fp' created but file is missing on disk"
+          continue
+        fi
+        # If the file has any uncommitted change (modified OR untracked), the
+        # claim is consistent. `git diff --quiet HEAD --` misses untracked
+        # files (newly created not yet `git add`'d), so use `git status
+        # --porcelain` which surfaces ALL states (?? for untracked, M/A/D for
+        # tracked changes).
+        if [ -n "$(git status --porcelain -- "$fp" 2>/dev/null)" ]; then
+          continue
+        fi
+        # Working tree is clean for this file. Check whether the last commit
+        # touching it is OLDER than the change_set finish time. If so, the
+        # change_set claims a post-commit modification that never landed.
+        last_commit_epoch=$(git log -1 --format=%ct -- "$fp" 2>/dev/null || echo 0)
+        [ -z "$last_commit_epoch" ] && last_commit_epoch=0
+        if [ "$cs_epoch" -gt "$last_commit_epoch" ]; then
+          warn "$cs claims '$fp' modified (lines_added=$lines_added) at $cs_finished_iso but file is clean against HEAD AND last commit touching it is older — modification may not have landed on disk"
+        fi
+      done < <(jq -r '.files[] | [.path, (.action // "unknown"), (.lines_added // 0)] | @tsv' "$cs")
+    fi
   done
 
   # -- staging/hitl/ must be empty for the feature to be considered passing --
@@ -329,4 +390,8 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   fi
 done
 
-echo "[Validate] OK"
+if [ "$WARN_COUNT" -gt 0 ]; then
+  echo "[Validate] OK (with $WARN_COUNT warning$([ "$WARN_COUNT" -eq 1 ] || echo s) — review the WARN lines above)"
+else
+  echo "[Validate] OK"
+fi

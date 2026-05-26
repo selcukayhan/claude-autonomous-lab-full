@@ -1,7 +1,7 @@
 {
-  "runs": 3,
+  "runs": 5,
   "avg_tokens": 0,
   "success_rate": 1.0,
-  "patterns_added": 24,
-  "notes": "Three complete features on feat/001-pet-health-app: (1) 001-pet-health-app (35 tasks, FE/BE/DevOps, RN+Node Lean MVP, pre_merge_review approved); (2) 002-webpack-migration (3 tasks, build-tooling sub-feature, plan_lock_review pending); (3) 002-agent-telemetry (framework upgrade, task-update.sh + telemetry schema live on feat branch). All HITL gates executed cleanly. Feature 002's flow_deviation (spec→planning skipping ux_research/architecture/ux_design) demonstrated safe sub-feature isolation. 10 new patterns extracted: agent-tool gaps, sub-feature SDD, RN code hazards, bundler-layer solutions, RN-navigation patterns, RN-on-web CSS, browser-based FE testing, provenance discipline, and parallel-batch contention. avg_tokens instrumented starting batch 5 (telemetry.jsonl has 34+ samples)."
+  "patterns_added": 39,
+  "notes": "Five feature runs. Run 1–3 (feat/001): (1) 001-pet-health-app (35 tasks, Lean MVP), (2) 002-webpack-migration (3 tasks, sub-feature), (3) 002-agent-telemetry (framework upgrade). Run 4 (feat/001, carrier): (4) 003-routines-reminders (36 tasks, v1.1 TailTrack, one-session autonomous mode with 7 amendment cycles v0.1.0–v0.2.3). Run 5 (feat/001, amendment analysis): (5) 003 context-manager distill (6 new patterns from amendment cycle). Feature 003 validated autonomous-mode HITL pre-auth, hard API removal (410 Gone + 426), public_api_change_post_lock exception + team_plan.json ownership, mid-feature spec amendment (v0.1.0→v0.1.1), Trello sync gate lowering, parallel batch rate-limit recovery. Critical finding: coding-agent change_set over-reporting (agent reports files modified on disk but git shows no changes). Validator schema gap identified: no change_set ↔ git-diff parity check. Remediation pattern: post-edit file re-read + grep evidence in agent report, plus framework-level diff validator. Opus-architect token efficiency lever confirmed: 1.2M Sonnet vs 3–4M Opus equivalent. Consolidation-after-revert pattern reduces amendment-chain bifurcation. Total 39 patterns. No origin push per feedback_no_push."
 }
