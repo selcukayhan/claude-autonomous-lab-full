@@ -471,6 +471,60 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
   fi
 done
 
+# -- Drift Check D: orchestrator inline-edit surveillance ---------------------
+# Flag uncommitted modifications to src/** or projects/** that aren't claimed
+# by any change_set on disk. This surfaces bug-routing violations BEFORE they
+# commit — the orchestrator is supposed to route bug fixes back to the
+# coding-* role that owns the file, not patch them inline.
+# See .claude/agents/orchestrator.md §"Bug routing protocol (binding)".
+#
+# Implementation: collect all paths claimed by every change_set under
+# specs/*/evidence/change_sets/*.json and specs/*/staging/change_sets/*.json.
+# Then walk `git status --porcelain` for modified/added src/** or projects/**
+# files. Each unclaimed modification → WARN.
+#
+# Per-orchestrator escape hatch: set RUNNER_SKIP_DRIFT_D=1 in the environment
+# to silence this check (for legitimate framework-touching-source cases, e.g.
+# a refactor that crosses the orchestrator/coding boundary intentionally).
+if [ "${RUNNER_SKIP_DRIFT_D:-0}" != "1" ] && command -v git >/dev/null 2>&1; then
+  # Collect every file path claimed by any change_set (evidence + staging).
+  claimed_paths_file=$(mktemp 2>/dev/null || echo "/tmp/validate_claimed_$$")
+  for cs in specs/*/evidence/change_sets/*.json specs/*/staging/change_sets/*.json; do
+    [ -f "$cs" ] || continue
+    jq -r '.files[]?.path // empty' "$cs" 2>/dev/null
+  done | sort -u > "$claimed_paths_file"
+
+  # Walk uncommitted changes to src/** or projects/** and flag unclaimed paths.
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    # `git status --porcelain` format: "XY path" where X/Y are status codes.
+    # Status code at columns 1-2; path at column 4+. Handle rename arrows.
+    status_code="${line:0:2}"
+    fp="${line:3}"
+    # Skip deletions — no inline-edit risk.
+    case "$status_code" in
+      *D*|D*) continue ;;
+    esac
+    # Strip rename arrow if present (e.g., "old -> new").
+    case "$fp" in
+      *' -> '*) fp="${fp##* -> }" ;;
+    esac
+    # Strip surrounding quotes that git emits for paths with spaces.
+    fp="${fp%\"}"; fp="${fp#\"}"
+    # Only check coding-role paths.
+    case "$fp" in
+      src/*|projects/*) ;;
+      *) continue ;;
+    esac
+    # Claimed by any change_set?
+    if ! grep -Fxq -- "$fp" "$claimed_paths_file" 2>/dev/null; then
+      warn "uncommitted edit to '$fp' is not claimed by any change_set. Route this fix back to the role that owns the file (see .claude/agents/orchestrator.md §Bug routing protocol), or set RUNNER_SKIP_DRIFT_D=1 if this is a legitimate orchestrator-level edit."
+    fi
+  done < <(git status --porcelain 2>/dev/null)
+
+  rm -f "$claimed_paths_file"
+fi
+
 if [ "$WARN_COUNT" -gt 0 ]; then
   echo "[Validate] OK (with $WARN_COUNT warning$([ "$WARN_COUNT" -eq 1 ] || echo s) — review the WARN lines above)"
 else

@@ -2,7 +2,7 @@
   "runs": 6,
   "avg_tokens": 0,
   "success_rate": 1.0,
-  "patterns_added": 45,
-  "notes": "Run 6 (006-v1-3-polish-and-compliance) + 2026-05-27 framework drift fix: 2 new patterns (#48 agent registry gap, #49 orchestrator tasks.status flip). Pattern count now 49.",
-  "last_updated": "2026-05-27T22:30:00Z"
+  "patterns_added": 46,
+  "notes": "Run 6 (006-v1-3-polish-and-compliance) + 2026-05-27 framework drift fix: 2 new patterns (#48 agent registry gap, #49 orchestrator tasks.status flip). Pattern count now 49. | 2026-05-27 follow-up: §Bug routing protocol + Drift Check D (orchestrator inline-fix anti-pattern, #50). Pattern count now 50.",
+  "last_updated": "2026-05-27T23:00:00Z"
 }

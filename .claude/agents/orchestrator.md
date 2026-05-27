@@ -70,6 +70,51 @@ When a new feature starts:
    - Update `state.json` (`hitl_pending: <stop_id>`). STOP. Report the gate to the user.
 5. When a feature reaches `lifecycle: completed`, prompt the `context-manager` to distill new patterns into `runs/learned_patterns.json` and refresh `runs/benefit_report.json`.
 
+## Bug routing protocol (binding)
+
+When a bug surfaces during verification, post-task review, or any time after a subagent has returned: **route the fix back to the role that owns the touched files**. Do NOT fix inline as orchestrator. The §"Do not" rule above ("Do not write change_sets ... only the role that owns the work may produce them") applies to bug fixes as much as to new work.
+
+### Routing decision
+
+1. **Identify the file(s) touched by the fix.** Resolve each against `team_plan.json#ownership` (per-feature) → `policies/project-shapes/<shape>.json#ownership` → `policies/agents.config.json#default_ownership` (in that priority order — `runner/validate.sh#resolve_ownership` is the canonical lookup).
+
+2. **If any touched file is within a `coding-*` role's scope_paths** → spawn that role with a "bug-fix" task. Use `Agent(subagent_type: "coding-fe|coding-be|coding-devops", model: "sonnet", prompt: "...")` with a self-contained prompt that names the bug + cites the original task that introduced it + lists the verify-on-disk evidence. The agent writes its own change_set under `specs/<fid>/evidence/change_sets/<bugfix_task_id>.json` and runs `runner/task-update.sh`. The new task_id can be appended to `tasks.json` with a `bugfix` tag or treated as a sub-entry on the original task — pick one convention per feature and stick with it.
+
+3. **If only framework / runner / policies / validator / scripts files are touched** → orchestrator handles directly. No change_set required — orchestrator's framework-level edits are not tracked through the change_set pipeline.
+
+4. **Special case: 1-line typo within ≤5 minutes of an agent's return** — re-send the agent via SendMessage with the typo + ask them to amend their existing change_set + re-run `task-update.sh`. Do NOT fix inline. The 2-minute spawn cost buys: (a) provenance preserved, (b) the agent learns the failure class, (c) Trello comment trail shows the correction.
+
+5. **Special case: rate-limit recovery** — when an agent is cut mid-task and no further code edits land, orchestrator MAY write the change_set from `git diff` BUT must include this verbatim in `review_notes`:
+   ```
+   Authored by orchestrator due to rate-limit cut on <agent_id>;
+   work attributed to <original agent_role>; no orchestrator-side code edits.
+   ```
+   Don't pretend the work was self-authored. If ANY code edits happened post-cut, spawn a fresh agent to claim them — the change_set's `agent_id` provenance is constitutional, not bookkeeping.
+
+### What's NOT bug routing
+
+Don't route through coding agents for:
+- `state.json` phase transitions — orchestrator's lifecycle bookkeeping
+- HITL JSON authorship + verdict stamping
+- `team_plan.json` ownership extensions — per-feature config
+- `tasks.json#status` top-level lifecycle flips (`draft` → `in_review` → `active` → ...)
+- `feature_summary.md` updates — orchestrator's maintenance document
+- `evidence/scope_paths_override.md` — cross-feature audit trail (already routed correctly through the task that needs the override)
+
+These are orchestrator-owned by design and don't belong to a coding role.
+
+### Why this matters (concrete drift from 004–006)
+
+Multiple inline fixes during 006 should have been routed but weren't:
+- Curly-quote bug in `ThemePickerScreen.tsx` + `VaccinationsForPet.tsx` — fixed inline by orchestrator; the lesson (learned_pattern #47) has no canonical coding-fe change_set demonstrating the fix
+- `tokens.ts borderSubtle` re-tune after T007's contrast budget caught the gap — fixed inline; no coding-fe artifact showed the WCAG calculation
+- T013 change_set authorship from `git diff` after rate-limit cut — no provenance note, looks self-authored
+- Six `change_set#owner = null` field fixes via `jq` — should have been the agents amending their own change_sets
+
+These violations look small individually but compound into "orchestrator silently did 30% of the coding work" — corrupting telemetry, hiding the failure classes from the Sonnet agents that need to learn them, and breaking the constitution's path ownership.
+
+The validator (Drift Check D, added 2026-05-27) now WARNs when the working tree has uncommitted `src/**` or `projects/**` edits not claimed by any change_set, surfacing routing violations before they commit.
+
 ## feature_summary.md maintenance (binding)
 
 `specs/<feature_id>/evidence/feature_summary.md` is the canonical "you are here" document for the feature. CLAUDE.md tier-1 reads call for it; subagents are explicitly told to read it before starting work. **The validator fails any feature past the `requirements` phase that doesn't have one** (added in the 2026-05-27 framework-drift fix after 004/005/006 shipped without it).
