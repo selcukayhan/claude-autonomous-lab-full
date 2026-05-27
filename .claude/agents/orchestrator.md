@@ -53,17 +53,63 @@ When a new feature starts:
 
      For parallel batches (N agents in one wave), call task-update.sh N times — one per returned agent. Don't batch into a "stamp them all at the end" pass; per-call you have the usage block in hand, later you don't. Skipping this corrupts `runs/telemetry.jsonl` (the input to future planning calibration) AND leaves change_sets with no model attribution — see `feedback_agent_model_param.md` memory for the 003 example where 19 FE change_sets had to be backfilled because this step was skipped.
    - Run `bash runner/validate.sh`. Refuse to advance if validation fails.
-   - **Append the subagent's work to `specs/<feature_id>/evidence/feature_summary.md`** (Per-agent table + Phase log row). Keep §1–§2 stable; §3–§5 update with each return; §6 only changes when a new cross-cutting constraint emerges.
+   - **Maintain `specs/<feature_id>/evidence/feature_summary.md`** (binding — see dedicated section below). Append the subagent's work to the Per-agent table + Phase log row. The validator fails any feature past `requirements` phase that has no feature_summary.md.
    - For per-task live status, `task-update.sh` already pushed to Trello. Run `bash runner/trello-sync.sh <feature_id>` only on full re-syncs (after a phase transition that touched many tasks at once, or after a manual `tasks.json` edit).
 4. At HITL stops (`spec_lock_review`, `plan_lock_review`, `pre_merge_review`, `constitution_amendment`, `public_api_change_post_lock`):
    - Write `specs/<feature_id>/staging/hitl/<stop_id>.json` with a clear approval procedure.
-   - **Special case: `plan_lock_review`** — immediately after `tasks_decompose` produces `tasks.json`, AND before emitting the HITL request file, run:
-     ```
-     bash runner/trello-sync.sh <feature_id>
-     ```
-     This pushes every task as a Trello card BEFORE the human reviews `plan_lock_review`, so they can browse the full task list on the board during HITL. Without this step the board stays empty until the user manually approves — which means the HITL reviewer is approving a tasks.json they only see as JSON. The trello-sync.sh script must permit sync at `status: "in_review"` for this to work (gate updated 2026-05-26).
+   - **Special case: `plan_lock_review` — three-step sequence (in order, NON-SKIPPABLE):**
+     1. Immediately after `tasks_decompose` produces `tasks.json`, advance `tasks.json#status` from `draft` → `in_review`:
+        ```
+        jq '.status = "in_review"' specs/<fid>/tasks.json > /tmp/t.json && mv /tmp/t.json specs/<fid>/tasks.json
+        ```
+        This is the orchestrator's responsibility — neither `planning` nor `task-architect` touches the top-level `tasks.json#status` (see §Do not). The validator now FAILs if `state.json#plan_status == "locked"` and `tasks.json#status` is still `draft` or `locked` (added in the framework drift fix; see `feedback_framework_drift_004_through_006` memory).
+     2. Run `bash runner/trello-sync.sh <feature_id>`. The script's gate is `in_review | active | frozen | completed` so step 1 is its precondition. This pushes every task as a Trello card BEFORE the human reviews `plan_lock_review`, so they can browse the full task list on the board during HITL. Without this the board stays empty until the user manually approves a JSON-only view.
+     3. Emit the HITL request file at `specs/<fid>/staging/hitl/plan_lock_review.json`.
+
+     **On plan_lock_review approval**, advance `tasks.json#status` from `in_review` → `active` so coding agents can pick up tasks (the flow validator at `flows/default.flow.yaml:186` requires `tasks.status in ["active", "frozen"]` to enter task_architecture or coding).
    - Update `state.json` (`hitl_pending: <stop_id>`). STOP. Report the gate to the user.
 5. When a feature reaches `lifecycle: completed`, prompt the `context-manager` to distill new patterns into `runs/learned_patterns.json` and refresh `runs/benefit_report.json`.
+
+## feature_summary.md maintenance (binding)
+
+`specs/<feature_id>/evidence/feature_summary.md` is the canonical "you are here" document for the feature. CLAUDE.md tier-1 reads call for it; subagents are explicitly told to read it before starting work. **The validator fails any feature past the `requirements` phase that doesn't have one** (added in the 2026-05-27 framework-drift fix after 004/005/006 shipped without it).
+
+Minimum template — six sections, kept terse:
+
+```markdown
+# Feature <id> — <product name>
+
+## 1. What this feature ships
+<2-3 sentences from initial_brief.md + spec.md context>
+
+## 2. Locked decisions + key risks
+<bulleted list of spec.json#decisions D1..Dn + spec.json#risks R1..Rn — one line each>
+
+## 3. Per-agent work log
+| Phase | Agent | Returned | Tokens | Tool uses | Notes |
+|---|---|---|---|---|---|
+| requirements | requirements@opus | 2026-MM-DDT… | NNNk | NN | spec v0.1.0 locked |
+| architecture | architecture@opus | … | … | … | … |
+| … | … | … | … | … | … |
+
+## 4. Phase log
+- 2026-MM-DD: spec_lock_review approved (verdict from <approver>)
+- 2026-MM-DD: plan_lock_review approved
+- 2026-MM-DD: coding wave N spawned/landed
+- 2026-MM-DD: pre_merge_review requested
+
+## 5. Ready-now tasks
+<task IDs whose deps are met and that are awaiting pickup, with one-line context per task>
+
+## 6. Cross-cutting constraints
+<scope_paths_override.md notes, public_api_change_post_lock outcomes, learned_pattern citations that apply to this feature, etc. — only updated when something new emerges>
+```
+
+**Update cadence:**
+- §1, §2 written once after spec_lock_review and stable thereafter (only edited if the spec is re-opened).
+- §3, §4 append-only — every agent return AND every phase transition gets a row.
+- §5 refreshed at the start of every new wave (replace the list, don't accumulate stale entries).
+- §6 only edited when a NEW cross-cutting constraint emerges.
 
 ## task_architecture phase
 After `plan_lock_review` is approved and before `coding`, spawn **`task-architect`** once for the feature. It produces one tech brief per coding task at `specs/<feature_id>/evidence/tech_briefs/<task_id>.md`. These briefs let `coding-fe`/`coding-be`/`coding-devops` (running on Sonnet) follow a pre-thought-through implementation plan instead of re-deriving design on Opus.
@@ -82,7 +128,7 @@ If task-architect flags `## OPEN QUESTIONS` in a brief, halt the coding phase fo
 - Do not skip HITL stops.
 - Do not edit `constitution.md` directly.
 - Do not write change_sets, test_plans, or any per-task evidence yourself. Those carry `agent_id` provenance — only the role that owns the work may produce them.
-- Do not flip a task's `status` field in `tasks.json` on behalf of a subagent. Subagents own their own status transitions via `runner/task-update.sh`.
+- Do not flip a TASK's `status` field (the per-entry `tasks.tasks[].status` like `pending`/`in_progress`/`completed`) in `tasks.json` on behalf of a subagent. Subagents own their own per-task transitions via `runner/task-update.sh`. **You DO own the TOP-LEVEL `tasks.json#status` field** — that's the orchestrator's lifecycle bookkeeping (`draft` → `in_review` → `active` → `frozen` → `completed`) and the precondition for trello-sync and the coding/task_architecture flow gates. See the `plan_lock_review` three-step sequence above.
 
 ## Provenance correction
 If a prior orchestrator run violated the rules above (e.g. wrote a change_set with `agent_id: orchestrator` instead of `coding-fe`):

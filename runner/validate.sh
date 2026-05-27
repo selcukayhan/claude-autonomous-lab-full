@@ -229,6 +229,87 @@ for feature_dir in specs/[0-9][0-9][0-9]-*/; do
     fi
   fi
 
+  # -- Framework-drift checks (added 2026-05-27 after 004/005/006 shipped --
+  # without feature_summary.md and with tasks.json#status stuck at locked/draft).
+  #
+  # These are INTENTIONALLY decoupled from `legacy_layout` (which is about the
+  # per-feature `projects/<fid>/` output convention) — feature_summary.md and
+  # tasks.status flips apply to ANY active SDD feature regardless of where its
+  # code lives. Per-feature opt-out: `team_plan.json#legacy_drift = true`.
+  #
+  # A missing team_plan.json (pre-team_plan-system features like
+  # 002-webpack-migration) is treated as an implicit drift opt-out, matching
+  # the existing legacy_layout precedent for the project-dir check above.
+  drift_optout=false
+  if [ ! -f "$tp" ]; then
+    drift_optout=true
+  elif [ "$(jq -r '.legacy_drift // false' "$tp")" = "true" ]; then
+    drift_optout=true
+  fi
+
+  # Drift check A: feature_summary.md must exist once the feature passes the
+  # requirements phase. It's the canonical "you are here" doc cited by
+  # CLAUDE.md tier-1 reads and orchestrator.md's per-phase protocol.
+  if [ "$drift_optout" = "false" ] && [ -f "$feature_dir/state.json" ]; then
+    phase=$(jq -r '.phase // "bootstrap"' "$feature_dir/state.json")
+    case "$phase" in
+      bootstrap|constitution_check|requirements)
+        : # too early to require feature_summary.md
+        ;;
+      *)
+        [ -f "$feature_dir/evidence/feature_summary.md" ] \
+          || fail "feature $fid is past requirements (phase=$phase) but evidence/feature_summary.md is missing. Create it per .claude/agents/orchestrator.md §feature_summary.md, or set team_plan.json#legacy_drift = true to opt out."
+        ;;
+    esac
+  fi
+
+  # Drift check B: when state.json#plan_status == "locked", tasks.json#status
+  # must have advanced past draft/locked. The orchestrator is supposed to flip
+  # it to in_review (for Trello sync) and then active (for coding) per
+  # .claude/agents/orchestrator.md §plan_lock_review three-step sequence.
+  # Otherwise trello-sync.sh + task-update.sh silently skip every per-task push.
+  if [ "$drift_optout" = "false" ] \
+     && [ -f "$feature_dir/state.json" ] && [ -f "$feature_dir/tasks.json" ]; then
+    plan_status=$(jq -r '.plan_status // empty' "$feature_dir/state.json")
+    tasks_status=$(jq -r '.status // empty' "$feature_dir/tasks.json")
+    if [ "$plan_status" = "locked" ]; then
+      case "$tasks_status" in
+        in_review|active|frozen|completed)
+          : # ok
+          ;;
+        *)
+          fail "feature $fid: state.json#plan_status=locked but tasks.json#status=$tasks_status. Orchestrator must flip tasks.json#status to in_review at plan_lock_review (then active on approval) so trello-sync.sh + task-update.sh push to Trello. See .claude/agents/orchestrator.md §plan_lock_review, or set team_plan.json#legacy_drift = true to opt out."
+          ;;
+      esac
+    fi
+  fi
+
+  # Drift check C: once tasks.json#status >= in_review, every coding-* task in
+  # tasks.json must have a corresponding tech_brief at evidence/tech_briefs/<id>.md.
+  # The per-change_set version of this check above is reactive — it only fires
+  # when an agent already shipped a change_set without a brief. This proactive
+  # check catches the gap before any coding wave starts.
+  if [ "$drift_optout" = "false" ] && [ -f "$feature_dir/tasks.json" ]; then
+    tasks_status=$(jq -r '.status // empty' "$feature_dir/tasks.json")
+    case "$tasks_status" in
+      in_review|active|frozen|completed)
+        # Coding-role tasks should each have a tech_brief.
+        missing_briefs=$(jq -r '
+          .tasks[]
+          | select((.owner // .agent_role // "") | test("^coding-"))
+          | .id
+        ' "$feature_dir/tasks.json" | while read -r tid; do
+          [ -z "$tid" ] && continue
+          [ -f "$feature_dir/evidence/tech_briefs/$tid.md" ] || echo "$tid"
+        done)
+        if [ -n "$missing_briefs" ]; then
+          missing_summary=$(echo "$missing_briefs" | tr '\n' ' ')
+          fail "feature $fid: tasks.json#status=$tasks_status but coding-* tasks have no tech_brief at evidence/tech_briefs/: $missing_summary. task-architect phase was skipped or incomplete. Re-run task-architect, or set team_plan.json#legacy_drift = true to opt out."
+        fi
+        ;;
+    esac
+  fi
+
   spec_json="$feature_dir/spec.json"
   plan_json="$feature_dir/plan.json"
   tasks_json="$feature_dir/tasks.json"

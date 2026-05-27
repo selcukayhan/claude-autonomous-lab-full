@@ -2,6 +2,7 @@
   "runs": 6,
   "avg_tokens": 0,
   "success_rate": 1.0,
-  "patterns_added": 43,
-  "notes": "Run 6: 004-settings-overhaul end-to-end (30 tasks, 21/21 must-ACs covered, lifecycle=in_implementation pending pre_merge_review HITL) + 005-push-notifications closure + 4 new framework lessons: (CRITICAL) Local dev infra demo-mode trap — backend silently falls back to in-memory mode when Postgres is unreachable, returning 404 for missing routes; runner/scripts/check-dev-infra.sh added as one-shot probe; (HIGH) JSX in .ts file class — Babel TypeScript preset disables JSX parsing in .ts regardless of tsconfig#jsx; (HIGH) Injectable hook APIs must be referentially stable — inline object construction or ?? fallback at call site causes infinite re-renders via useCallback([api]) → useFocusReload chain; (MEDIUM) Native-only RN library imports need web-mocks alias not just npm install. Total 46 patterns now. No origin push per feedback_no_push."
+  "patterns_added": 45,
+  "notes": "Run 6 (006-v1-3-polish-and-compliance) + 2026-05-27 framework drift fix: 2 new patterns (#48 agent registry gap, #49 orchestrator tasks.status flip). Pattern count now 49.",
+  "last_updated": "2026-05-27T22:30:00Z"
 }
