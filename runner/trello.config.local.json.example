@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy this file to runner/trello.config.local.json (gitignored) and fill in your credentials.",
+  "_how_to_get": [
+    "1. API key: visit https://trello.com/power-ups/admin and create (or open) a Power-Up; the 'API key' field is on the API Key tab.",
+    "2. Personal token: from the same page click 'Generate a new API Token'. Grant read/write on your workspace. Copy the token.",
+    "3. Paste both values below. They are read by runner/trello-sync.sh.",
+    "4. Optional: set 'workspace_id' to scope new boards to a specific Trello workspace. Leave null to create boards in your default workspace."
+  ],
+  "api_key": "PASTE_YOUR_KEY_HERE",
+  "api_token": "PASTE_YOUR_TOKEN_HERE",
+  "workspace_id": null
+}

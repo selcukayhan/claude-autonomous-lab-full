@@ -1,22 +1,158 @@
-# CLAUDE.md — Conventions & Operating Rules
+# CLAUDE.md — Conventions & Operating Rules (Spec-Driven Mode)
 
-## Context tiers
-- Tier0: Always include CLAUDE.md, policies, and the active agent manifest.
-- Tier1: Include current phase artifacts (e.g., spec, plan, interfaces).
-- Tier2: Retrieve top-k relevant chunks from docs/runs (k<=8).
-- Tier3: Include up to 5 distilled lessons from runs/learned_patterns.json.
+This repo runs in **spec-driven development** mode. The flow is:
+
+```
+constitution → spec (locked) → plan (locked) → tasks → tech_briefs → coding → test → release
+```
+
+Every step is gated by either an automated validator or a Human-in-the-Loop
+(HITL) review. The orchestrator never lets an agent skip a gate.
+
+## Orchestration responsibility (binding)
+
+**The main Claude Code session IS the orchestrator for spec-driven work.** Read `.claude/agents/orchestrator.md` for the full protocol and execute it yourself. Do NOT spawn that file via the Agent tool — the Agent grant strips at spawn (see `feedback_orchestrator_top_level.md` memory).
+
+### Trigger phrases that activate orchestrator mode (binding)
+
+When the user says any of:
+
+- "Start a new feature: …" / "Let's build …" / "New spec for …"
+- "Continue feature N" / "Resume feature N"
+- "Approve <hitl_gate>" / "Lock the spec" / "Lock the plan"
+- "Drop these mockups for a new feature" / "Build this from the design"
+- An equivalent intent ("I want to add …" or "we should ship …" + concrete scope)
+
+Read `.claude/agents/orchestrator.md` fully and execute its protocol yourself. Spawn phase agents (requirements / architecture / planning / task-architect / coding-* / test / docs) via the Agent tool. Halt at HITL gates per constitution §III.
+
+### What does NOT activate orchestrator mode
+
+- Quick questions about the codebase, framework, or running services
+- Debugging, refactors, lint fixes, type errors
+- Framework / config / memory edits
+- Ad-hoc work without a spec
+- Anything where the user gave you a specific file to edit
+
+For those, handle directly as main session — no SDD flow, no spec.json, no HITL.
+
+### Subagent spawning — required overrides
+
+When spawning subagents via the Agent tool:
+
+- **Always pass `model:` explicitly** — frontmatter `model:` is ignored at spawn time (`feedback_agent_model_param.md`). Pass `"opus"` / `"sonnet"` / `"haiku"` per the tier table below.
+- Subagents inherit only Read/Write/Edit/Bash/Grep/Glob — never `Agent`. They cannot recursively fan out.
+
+### Model tier table (binding for spawn calls)
+
+| Tier | Roles | Pass on Agent call |
+|---|---|---|
+| Opus | requirements, architecture, planning, task-architect, policy, test | `model: "opus"` |
+| Sonnet | coding-fe, coding-be, coding-devops, uiux-researcher, uiux-designer, security, release, experiment | `model: "sonnet"` |
+| Haiku | bootstrap, context-manager, docs | `model: "haiku"` |
+
+The main session itself is the Opus tier (it plays orchestrator) — no `model` param needed when YOU act as orchestrator, only when you spawn.
+
+## Resuming work (read first if you're a fresh session)
+
+If you're a Claude session newly opened in this repo, orient by reading in this order:
+
+1. **This file** (`CLAUDE.md`) — conventions + ownership.
+2. **`constitution.md`** — immutable principles, HITL stops, ownership rules.
+3. **`runs/learned_patterns.json`** — cross-feature lessons learned in prior sessions.
+4. **`runs/benefit_report.json`** — current run-count and aggregate metrics.
+5. **`specs/`** — list directories to discover active features. For each `specs/<feature_id>/`:
+   - `state.json` — current lifecycle, phase, HITL state.
+   - `evidence/feature_summary.md` — the canonical "you are here" doc with all completed work, locked decisions, ready-now tasks, and cross-cutting context for agents.
+6. **`.claude/agents/<role>.md`** — your role's system prompt if you were spawned as a subagent.
+
+The **feature_summary.md** in each feature's `evidence/` directory is the most important per-feature read. The orchestrator maintains it as agents complete work; subagents must read it before starting any task so they understand what's been built and why.
+
+## Persistence layer (what survives session end)
+
+| Where | What | Updated by |
+|---|---|---|
+| `git` on `feat/*` branches | All artifacts + code | Runner auto-commits |
+| `constitution.md` | Principles | Constitution amendment HITL |
+| `specs/<id>/state.json#history` | Chronological phase log | Orchestrator at each transition |
+| `specs/<id>/evidence/feature_summary.md` | Detailed feature context for agents | Orchestrator after each phase / subagent return |
+| `specs/<id>/spec.md#Decisions` | Per-feature decisions with CQ traceability | Requirements agent on lock |
+| `specs/<id>/plan.md` ADRs + risks | Architectural decisions | Architecture + planning agents |
+| `runs/learned_patterns.json` | Cross-feature lessons (strings) | Context-manager + orchestrator |
+| `runs/benefit_report.json` | Aggregate metrics across runs | Context-manager |
+| `runs/telemetry.jsonl` | Per-task execution telemetry (agent, model, duration, tokens, tool_uses) | `runner/task-update.sh` (called by coding agents + orchestrator) |
+| Trello cards | Task status + DoD + AC refs (live) | `runner/task-update.sh` per-task; `runner/trello-sync.sh` for full re-syncs |
+
+## Context tiers (assembled per phase)
+- **Tier0 (always):** `CLAUDE.md`, `constitution.md`, `policies/*`, the active agent manifest.
+- **Tier1:** the active phase's declared `reads:` from `flows/default.flow.yaml`.
+- **Tier2:** semantic retrieval (top_k≤8) over `docs/**`, `runs/**`, sibling locked specs/plans. **Never** retrieve from `specs/*/staging/**`.
+- **Tier3:** up to 5 distilled lessons from `runs/learned_patterns.json`.
 
 ## Artifact discipline
-- Agents must write to `/runs/<id>/staging/...` first. Orchestrator promotes only after schema validation.
-- JSON must validate against `artifacts/schemas/*`. YAML must exist and be non-empty.
-- Summarize reasoning, **no chain-of-thought**.
+- All agent writes land in `specs/<feature_id>/staging/...` first.
+- The orchestrator promotes to `specs/<feature_id>/...` only after schema
+  validation **and** traceability validation pass (`runner/validate.sh`).
+- JSON must validate against `artifacts/schemas/*`. YAML contracts must follow
+  the templates in `contracts/`.
+- Summarize reasoning; do **not** record chain-of-thought.
+
+## Traceability (binding)
+Every downstream artifact references its upstream:
+- `plan.json` → `spec_ref`
+- `tasks.json` → `plan_ref` + per-task `spec_criterion_refs[]`
+- `change_set.json` → `task_ref` + mirrored `spec_criterion_refs[]`
+- `test_plan.json` → `task_refs[]`
+
+Validator rejects artifacts that break the chain or reference non-existent IDs.
 
 ## HITL stops
-- Public API changes post-lock; migrations; repeated schema failures; HIGH vulns (if enabled); release rollback.
+Auto-execution pauses for human review at these gates (see `constitution.md` §III):
+1. `spec_lock_review` — after requirements, before architecture.
+2. `plan_lock_review` — after planning + tasks_decompose, before coding.
+3. `pre_merge_review` — after test, before promotion to `main`.
+4. `constitution_amendment` — any edit to `constitution.md`.
+5. `public_api_change_post_lock` — edits to a locked `interfaces.yaml`.
 
-## Ownership
-- FE edits FE paths; BE edits BE; DevOps edits infra only; Docs updates README/docs.
+Agents must emit a `hitl_request` artifact under
+`specs/<feature_id>/staging/hitl/<stop_id>.json` and pause. The runner blocks
+commits while a HITL request is pending.
+
+## Ownership (binding)
+Ownership is resolved per-feature, not globally. Look it up in this order:
+
+1. **`specs/<feature_id>/team_plan.json#ownership[<role>]`** — per-feature override (written by `architecture`).
+2. **`policies/project-shapes/<team_plan.project_shape>.json#ownership[<role>]`** — the shape preset (web-fullstack / monorepo / cli / library / ml-pipeline). See `policies/project-shapes/README.md`.
+3. **`policies/agents.config.json#default_ownership[<role>]`** — global fallback for non-coding roles (docs, requirements, planning, architecture, policy, etc.).
+
+Coding-role ownership (`coding-fe`, `coding-be`, `coding-devops`) is INTENTIONALLY absent from the global default — every feature must pick a `project_shape` or declare its own coding-role globs so work isn't silently routed to paths that don't exist on disk.
+
+## Per-feature output directory
+All code, infra, tests, and runtime docs produced by coding agents live under `projects/<feature_id>/`. Shape templates use `{feature_id}` as a placeholder; the validator substitutes it before glob matching. The framework's own files (`runner/`, `.github/`, `runs/`, `policies/`, `artifacts/`, `flows/`, `specs/`) stay at the repo root — those are master-branch territory.
+
+The orchestrator creates `projects/<feature_id>/` at feature allocation. The validator fails if a feature's `state.json#phase` is past `bootstrap` and `projects/<feature_id>/` doesn't exist, unless the feature opts out with `team_plan.json#legacy_layout = true` (only `001-pet-health-app` should — it pre-dates this convention).
+
+## Design pipeline
+Mockup images for the feature live under `projects/<feature_id>/design/` (PNG/JPG/WebP). The user generates mockups in Stitch / Uizard / Figma and drops them there. The `uiux-designer` agent (Opus, vision) reads them via Glob+Read, extracts screens/components/tokens, and writes `specs/<feature_id>/ux_design.json` with `mockup_refs` pointing back at the originals. Coding agents read `ux_design.json` for normalized design info; they peek at the raw mockups only when the brief explicitly references a file or `ux_design.json` is ambiguous.
+
+Cross-boundary edits require an explicit `team_plan.json` entry plus
+reconciliation by the `architecture` agent.
+
+## Scope discipline
+- A locked spec cannot silently grow new acceptance criteria. To add ACs:
+  re-open the spec, bump version (`major` for breaking, `minor` otherwise),
+  go through `spec_lock_review` again.
+- Tasks may not bypass their plan. New tasks require a plan amendment.
+- A change_set that touches files outside the referenced task's `scope_paths`
+  is rejected by `runner/validate.sh`.
 
 ## Evolution
-- Experiments compare retrieval/compression strategies (non-destructive).
-- Policy agent approves promotions per `policies/context-governance.json`.
+- `experiment` proposes non-destructive variants only.
+- `policy` (or a human) approves promotions per
+  `policies/context-governance.json#allow_auto_promotion` (default: false).
+- Constitution amendments are the only way to change `constitution.md`.
+
+## Quick references
+- New feature: copy `specs/000-template/` → `specs/NNN-your-feature/`, then
+  ask the orchestrator to drive the flow.
+- See `specs/README.md` for the per-feature directory layout.
+- See `flows/default.flow.yaml` for the full state machine.

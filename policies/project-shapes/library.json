@@ -1,0 +1,12 @@
+{
+  "name": "library",
+  "description": "Publishable library or SDK. Public API + tests + examples. No frontend, no long-running server. Distribution and API stability are critical.",
+  "ownership": {
+    "coding-be":     ["projects/{feature_id}/src/**", "projects/{feature_id}/lib/**", "projects/{feature_id}/pkg/**"],
+    "coding-devops": ["projects/{feature_id}/Makefile", "projects/{feature_id}/package.json", "projects/{feature_id}/pyproject.toml", "projects/{feature_id}/Cargo.toml", "projects/{feature_id}/go.mod", "projects/{feature_id}/build.gradle", "projects/{feature_id}/pom.xml"],
+    "test":          ["projects/{feature_id}/tests/**", "projects/{feature_id}/test/**", "projects/{feature_id}/src/**", "projects/{feature_id}/examples/**", "specs/{feature_id}/evidence/test_plan.json"],
+    "docs":          ["projects/{feature_id}/README.md", "projects/{feature_id}/docs/**", "projects/{feature_id}/CHANGELOG.md", "projects/{feature_id}/examples/**", "specs/{feature_id}/spec.md", "specs/{feature_id}/plan.md"],
+    "security":      ["specs/{feature_id}/evidence/security_summary.json"]
+  },
+  "notes": "No coding-fe. examples/ doubles as integration tests AND user-facing docs — both `test` and `docs` may write there; the architecture agent should narrow if that ambiguity matters for the feature. Public API stability is critical — interfaces.yaml lock applies extra rigor here."
+}

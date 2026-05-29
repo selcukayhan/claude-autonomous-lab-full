@@ -1,0 +1,12 @@
+{
+  "name": "cli",
+  "description": "Single-binary command-line tool. No frontend; code lives under src/, cmd/, internal/, or pkg/ (language-idiomatic).",
+  "ownership": {
+    "coding-be":     ["projects/{feature_id}/src/**", "projects/{feature_id}/cmd/**", "projects/{feature_id}/internal/**", "projects/{feature_id}/pkg/**", "projects/{feature_id}/lib/**"],
+    "coding-devops": ["projects/{feature_id}/Makefile", "projects/{feature_id}/Dockerfile", "projects/{feature_id}/infra/**", "projects/{feature_id}/scripts/**"],
+    "test":          ["projects/{feature_id}/tests/**", "projects/{feature_id}/test/**", "projects/{feature_id}/src/**", "projects/{feature_id}/cmd/**", "specs/{feature_id}/evidence/test_plan.json"],
+    "docs":          ["projects/{feature_id}/README.md", "projects/{feature_id}/docs/**", "projects/{feature_id}/man/**", "specs/{feature_id}/spec.md", "specs/{feature_id}/plan.md"],
+    "security":      ["specs/{feature_id}/evidence/security_summary.json"]
+  },
+  "notes": "coding-fe is not spawned for this shape. team_plan.json#recommended_agents should reflect that. Tests typically co-located with source for Go/Rust/Python projects — the `test` role's globs intentionally overlap source paths."
+}

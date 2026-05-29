@@ -1,9 +1,14 @@
 
-# Runs & temp
-runs/
+# Runs & temp — per-run scratch is ignored but the framework's learning artifacts are tracked.
+runs/tmp/
+runs/cache/
 .env
 node_modules/
 dist/
 .build/
 .cache/
 .DS_Store
+
+# Integration secrets — never commit
+runner/trello.config.local.json
+runner/*.local.json

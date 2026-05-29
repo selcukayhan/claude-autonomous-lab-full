@@ -1,21 +1,91 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChangeSet",
+  "description": "Proof-of-work artifact for a completed task. Every file in 'files' must fall under the task's scope_paths and every change must trace back to a spec acceptance criterion.",
   "type": "object",
   "required": [
+    "feature_id",
+    "task_ref",
+    "spec_criterion_refs",
+    "owner",
     "base_ref",
     "compare_ref",
-    "files"
+    "files",
+    "produced_at"
   ],
   "properties": {
-    "base_ref": {
-      "type": "string"
+    "feature_id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9-]+$"
     },
-    "compare_ref": {
-      "type": "string"
+    "task_ref": {
+      "type": "string",
+      "pattern": "^T[0-9]{3}$",
+      "description": "ID of the task in tasks.json this change set fulfills."
     },
+    "spec_criterion_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^AC[0-9]+$" },
+      "description": "Mirrored from the referenced task. Validators verify equality."
+    },
+    "owner": {
+      "type": "string",
+      "enum": ["coding-fe", "coding-be", "coding-devops", "test", "docs", "security"]
+    },
+    "base_ref": { "type": "string", "description": "Git ref of base." },
+    "compare_ref": { "type": "string", "description": "Git ref of head after changes." },
     "files": {
       "type": "array",
+      "minItems": 1,
       "items": {
-        "type": "string"
+        "type": "object",
+        "required": ["path", "change_type"],
+        "properties": {
+          "path": { "type": "string" },
+          "change_type": {
+            "type": "string",
+            "enum": ["added", "modified", "deleted", "renamed"]
+          },
+          "renamed_from": { "type": "string" },
+          "lines_added": { "type": "integer", "minimum": 0 },
+          "lines_removed": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "produced_at": { "type": "string", "format": "date-time" },
+    "test_evidence": {
+      "type": "object",
+      "properties": {
+        "test_plan_ref": { "type": "string" },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "coverage_delta": { "type": "number" }
+      }
+    },
+    "review_notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["reviewer", "verdict"],
+        "properties": {
+          "reviewer": { "type": "string" },
+          "verdict": { "type": "string", "enum": ["approve", "request_changes", "comment"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "description": "Per-task execution telemetry. Subagent writes the fields it knows (agent_id, model, started_at, finished_at). Orchestrator merges in duration_ms + total_tokens + tool_uses after the Agent return. All fields optional so legacy change_sets keep validating.",
+      "properties": {
+        "agent_id": { "type": "string", "description": "Subagent type, e.g. coding-fe." },
+        "model": { "type": "string", "description": "Model that executed the subagent, e.g. claude-opus-4-7." },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "duration_ms": { "type": "integer", "minimum": 0, "description": "Wall-clock duration from Agent return usage block." },
+        "total_tokens": { "type": "integer", "minimum": 0, "description": "Total tokens (input + output + cache) from Agent return usage block." },
+        "tool_uses": { "type": "integer", "minimum": 0, "description": "Tool-use count from Agent return usage block." }
       }
     }
   }

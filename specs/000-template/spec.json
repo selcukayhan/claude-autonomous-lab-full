@@ -1,0 +1,22 @@
+{
+  "feature_id": "000-template",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": "<Feature Title>",
+  "context": "Replace with the why and out-of-scope notes.",
+  "objectives": [
+    "Replace with measurable outcome 1"
+  ],
+  "constraints": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "criterion": "Replace with observable behavior",
+      "verification": "test",
+      "priority": "must"
+    }
+  ],
+  "non_functional": {},
+  "dependencies": [],
+  "clarifying_questions": []
+}

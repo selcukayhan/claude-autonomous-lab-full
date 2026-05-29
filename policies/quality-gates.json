@@ -1,9 +1,25 @@
 {
   "min_coverage_delta": 0.0,
   "block_on_high_vuln": true,
-  "license_allowlist": [
-    "MIT",
-    "Apache-2.0",
-    "BSD-3-Clause"
-  ]
+  "license_allowlist": ["MIT", "Apache-2.0", "BSD-3-Clause"],
+  "spec_driven": {
+    "require_locked_spec_before_planning": true,
+    "require_locked_plan_before_coding": true,
+    "require_all_must_ac_covered_by_tasks": true,
+    "require_change_set_traceability": true,
+    "block_pre_merge_on_blocked_tasks": true,
+    "block_pre_merge_on_uncovered_must_ac": true
+  },
+  "hitl_required": [
+    "spec_lock_review",
+    "plan_lock_review",
+    "pre_merge_review",
+    "constitution_amendment",
+    "public_api_change_post_lock"
+  ],
+  "constitution_amendment": {
+    "approver": "human",
+    "min_approvers": 1,
+    "record_in": "specs/<feature_id>-constitution-amendment/evidence/run_<id>.json"
+  }
 }

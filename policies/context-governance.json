@@ -2,5 +2,25 @@
   "context_budget_tokens": 4000,
   "top_k": 8,
   "salience_threshold": 0.5,
-  "allow_auto_promotion": false
+  "allow_auto_promotion": false,
+  "tier0_always_include": [
+    "CLAUDE.md",
+    "constitution.md",
+    "policies/quality-gates.json",
+    "policies/agents.config.json"
+  ],
+  "tier1_resolver": "phase_inputs_from_flow",
+  "tier2_retrieval": {
+    "sources": ["docs/**", "runs/**", "specs/*/spec.md", "specs/*/plan.md"],
+    "exclude": ["specs/*/staging/**"]
+  },
+  "tier3_lessons": {
+    "source": "runs/learned_patterns.json",
+    "limit": 5
+  },
+  "hitl_pause_artifact": "specs/{feature_id}/staging/hitl/<stop_id>.json",
+  "experiment_promotion": {
+    "approver": "policy_agent",
+    "fallback": "human"
+  }
 }

@@ -1,4 +1,25 @@
 {
   "auto_push": false,
-  "commit_message_prefix": "auto: agent update"
+  "commit_message_prefix": "auto: agent update",
+  "watch_paths": [
+    "specs",
+    "src",
+    "docs",
+    "constitution.md",
+    "CLAUDE.md",
+    "README.md",
+    ".claude/agents",
+    "agents",
+    "flows",
+    "policies",
+    "artifacts/schemas",
+    "contracts",
+    "runs",
+    "runner"
+  ],
+  "spec_driven": {
+    "block_on_validation_failure": true,
+    "block_on_hitl_pending": true,
+    "require_locked_spec_for_src_commits": true
+  }
 }

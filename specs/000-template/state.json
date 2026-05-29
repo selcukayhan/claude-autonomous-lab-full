@@ -1,0 +1,17 @@
+{
+  "feature_id": "000-template",
+  "lifecycle": "draft",
+  "phase": "requirements",
+  "spec_status": "draft",
+  "plan_status": "draft",
+  "tasks_status": "draft",
+  "hitl_pending": null,
+  "history": [
+    {
+      "at": "1970-01-01T00:00:00Z",
+      "event": "created",
+      "actor": "template",
+      "note": "Placeholder. Copy this directory and update feature_id."
+    }
+  ]
+}

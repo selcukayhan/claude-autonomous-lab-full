@@ -1,33 +1,76 @@
-version: 2
+version: 3
+mode: spec_driven
+
 settings:
   allow_retries: 1
   default_verbosity: low
   optional_agents:
     security: true
     release: true
+  feature_id_pattern: "^[0-9]{3}-[a-z0-9-]+$"
+  staging_dir: "specs/{feature_id}/staging"
+  promoted_dir: "specs/{feature_id}"
 
+# Per-feature artifact paths. {feature_id} is substituted at run time.
 artifacts:
-  spec: artifacts/spec.json
-  ux_research: artifacts/ux_research.json
-  ux_design: artifacts/ux_design.json
-  system_design: contracts/system_design.yaml
-  interfaces: contracts/interfaces.yaml
-  team_plan: artifacts/team_plan.json
-  plan: artifacts/plan.json
-  change_set: artifacts/change_set.json
-  test_plan: artifacts/test_plan.json
-  security_summary: artifacts/security_summary.json
-  release: artifacts/release.json
-  framework_map: runs/framework_map.json
-  learned_patterns: runs/learned_patterns.json
-  benefit_report: runs/benefit_report.json
+  state:           "specs/{feature_id}/state.json"
+  spec_md:         "specs/{feature_id}/spec.md"
+  spec:            "specs/{feature_id}/spec.json"
+  ux_research:     "specs/{feature_id}/ux_research.json"
+  ux_design:       "specs/{feature_id}/ux_design.json"
+  system_design:   "specs/{feature_id}/contracts/system_design.yaml"
+  interfaces:      "specs/{feature_id}/contracts/interfaces.yaml"
+  team_plan:       "specs/{feature_id}/team_plan.json"
+  plan_md:         "specs/{feature_id}/plan.md"
+  plan:            "specs/{feature_id}/plan.json"
+  tasks:           "specs/{feature_id}/tasks.json"
+  tech_brief:      "specs/{feature_id}/evidence/tech_briefs/{task_id}.md"
+  change_set:      "specs/{feature_id}/evidence/change_sets/{task_id}.json"
+  test_plan:       "specs/{feature_id}/evidence/test_plan.json"
+  security_summary:"specs/{feature_id}/evidence/security_summary.json"
+  release:         "specs/{feature_id}/evidence/release.json"
+  waivers:         "specs/{feature_id}/evidence/waivers.json"
+  run_record:      "specs/{feature_id}/evidence/run_{run_id}.json"
+
+# Repo-wide artifacts.
+global_artifacts:
+  constitution:    "constitution.md"
+  constitution_json: "constitution.json"
+  framework_map:   "runs/framework_map.json"
+  learned_patterns:"runs/learned_patterns.json"
+  benefit_report:  "runs/benefit_report.json"
 
 context_policy:
   tiers:
-    - tier0: always
-    - tier1: phase_inputs
-    - tier2: retrieve(top_k=8)
-    - tier3: history(limit=5)
+    - tier0: always                          # CLAUDE.md, constitution.md, policies/*
+    - tier1: phase_inputs                    # current phase's declared reads
+    - tier2: retrieve(top_k=8)               # semantic retrieval over docs/runs
+    - tier3: history(limit=5)                # distilled lessons from runs/learned_patterns
+
+# HITL stop definitions. The orchestrator MUST emit a `hitl_request` and pause
+# at each stop until a human (or policy agent, where allowed) records approval.
+hitl_stops:
+  - id: spec_lock_review
+    after: requirements
+    artifact: spec
+    advances_status_to: locked
+    approver: human
+  - id: plan_lock_review
+    after: tasks_decompose
+    artifact: [plan, tasks]
+    advances_status_to: locked
+    approver: human
+  - id: pre_merge_review
+    after: test
+    artifact: change_set
+    approver: human
+  - id: constitution_amendment
+    trigger_paths: ["constitution.md", "constitution.json"]
+    approver: human
+  - id: public_api_change_post_lock
+    trigger_paths: ["specs/*/contracts/interfaces.yaml"]
+    when: plan_status == "locked"
+    approver: human
 
 states:
   - name: bootstrap
@@ -36,19 +79,37 @@ states:
     writes: [framework_map]
     validate:
       - schema: artifacts/schemas/framework_map.schema.json
+    next: constitution_check
+
+  - name: constitution_check
+    agent: policy
+    reads: [constitution]
+    writes: []
+    validate:
+      - file: constitution.md
+      - schema: artifacts/schemas/constitution.schema.json
+        target: constitution_json
+        optional: true
+    on_change: pause(constitution_amendment)
     next: requirements
 
   - name: requirements
     agent: requirements
-    reads: []
-    writes: [spec]
+    reads: [constitution]
+    writes: [spec_md, spec, state]
     validate:
       - schema: artifacts/schemas/spec.schema.json
+        target: spec
+      - rule: spec.status == "in_review"
+      - rule: len(spec.clarifying_questions) == 0
+    hitl: spec_lock_review
     next: ux_research
 
   - name: ux_research
     agent: uiux-researcher
     reads: [spec]
+    requires:
+      - rule: spec.status == "locked"
     writes: [ux_research]
     validate:
       - schema: artifacts/schemas/ux_research.schema.json
@@ -59,8 +120,8 @@ states:
     reads: [spec, ux_research]
     writes: [system_design, interfaces, team_plan]
     validate:
-      - file: contracts/system_design.yaml
-      - file: contracts/interfaces.yaml
+      - file: specs/{feature_id}/contracts/system_design.yaml
+      - file: specs/{feature_id}/contracts/interfaces.yaml
       - schema: artifacts/schemas/team_plan.schema.json
     next: ux_design
 
@@ -99,29 +160,65 @@ states:
   - name: planning
     agent: planning
     reads: [spec, interfaces, team_plan, ux_design]
-    writes: [plan]
+    writes: [plan_md, plan]
     validate:
       - schema: artifacts/schemas/plan.schema.json
+        target: plan
+      - rule: plan.spec_ref endswith "spec.md"
+      - rule: every plan.work_items[*].spec_criterion_refs is_subset_of spec.acceptance_criteria[*].id
+    next: tasks_decompose
+
+  - name: tasks_decompose
+    agent: planning
+    reads: [plan, spec, interfaces]
+    writes: [tasks]
+    validate:
+      - schema: artifacts/schemas/tasks.schema.json
+      - rule: every tasks.tasks[*].spec_criterion_refs is_subset_of spec.acceptance_criteria[*].id
+      - rule: every spec.acceptance_criteria[*].id is_covered_by tasks.tasks[*].spec_criterion_refs
+    hitl: plan_lock_review
+    next: task_architecture
+
+  - name: task_architecture
+    agent: task-architect
+    requires:
+      - rule: plan.status == "locked"
+      - rule: tasks.status in ["active", "frozen"]
+    reads: [spec, plan, tasks, interfaces, system_design, team_plan, ux_design, learned_patterns]
+    writes: [tech_brief]
+    validate:
+      - rule: every tasks.tasks[?(@.owner =~ "coding-.*" && @.status == "pending")].id has_corresponding tech_brief
     next: coding
 
   - name: coding
     mode: parallel
+    requires:
+      - rule: plan.status == "locked"
+      - rule: tasks.status in ["active", "frozen"]
     participants:
       - agent: coding-fe
-        reads: [plan, interfaces, ux_design]
+        reads: [plan, tasks, tech_brief, interfaces, ux_design]
         writes: [change_set]
+        task_filter: "owner == 'coding-fe' and status == 'pending'"
       - agent: coding-be
-        reads: [plan, interfaces]
+        reads: [plan, tasks, tech_brief, interfaces]
         writes: [change_set]
+        task_filter: "owner == 'coding-be' and status == 'pending'"
       - agent: coding-devops
-        reads: [plan, interfaces, team_plan]
+        reads: [plan, tasks, tech_brief, interfaces, team_plan]
         writes: [change_set]
-    merge_rule: union_change_sets
+        task_filter: "owner == 'coding-devops' and status == 'pending'"
+    per_task_validate:
+      - schema: artifacts/schemas/change_set.schema.json
+      - rule: change_set.task_ref in tasks.tasks[*].id
+      - rule: change_set.spec_criterion_refs == tasks[change_set.task_ref].spec_criterion_refs
+      - rule: every change_set.files[*].path matches one_of tasks[change_set.task_ref].scope_paths
+    on_success: mark_task_completed
     next: test
 
   - name: test
     agent: test
-    reads: [plan, change_set]
+    reads: [plan, tasks, change_set]
     writes: [test_plan]
     validate:
       - schema: artifacts/schemas/test_plan.schema.json
@@ -129,25 +226,31 @@ states:
       - kind: coverage_delta
         min: 0.0
       - kind: critical_tests_pass
+      - kind: all_tasks_completed
+        scope: required_for_pre_merge
+    hitl: pre_merge_review
     next: security
 
   - name: security
     optional: true
     agent: security
-    reads: []
+    reads: [change_set]
     writes: [security_summary]
+    gates:
+      - kind: block_on_high_vuln
+        unless_waiver_in: waivers
     next: release
 
   - name: release
     optional: true
     agent: release
-    reads: [spec, plan, test_plan, security_summary]
+    reads: [spec, plan, tasks, test_plan, security_summary]
     writes: [release]
     next: docs
 
   - name: docs
     agent: docs
-    reads: [spec, system_design, interfaces, plan, release]
+    reads: [spec, system_design, interfaces, plan, tasks, release]
     writes: []
     next: experiment_phase
 
@@ -159,7 +262,7 @@ states:
 
   - name: learning_phase
     agent: context-manager
-    reads: [framework_map]
+    reads: [framework_map, run_record]
     writes: [learned_patterns, benefit_report]
     validate:
       - schema: artifacts/schemas/learned_patterns.schema.json
